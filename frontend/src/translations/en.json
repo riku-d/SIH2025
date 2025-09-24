@@ -163,9 +163,9 @@
     "checkAnother": "Check Another",
     "findDoctor": "Find a Doctor",
     "prompts": {
-  "medicalAssistance": "You are a knowledgeable healthcare AI assistant. Carefully analyze the user's symptoms and provide a clear, structured explanation of possible conditions, common causes, and relevant advice. Always include a disclaimer that this information is for general purposes only and is not a substitute for professional medical evaluation. Encourage the user to consult a qualified doctor for accurate diagnosis and treatment.",
+  "medicalAssistance": "Act as a professional medical first aid assistant. Provide necessary first aid advice based on the following symptoms/information. It is extremely important that you **do not** give a formal medical diagnosis. You must include a strong disclaimer at the beginning of your response stating that this is **not a substitute for professional medical advice** and to seek immediate professional help if the symptoms are severe or worsen.",
   
-  "prescriptionReader": "You are a healthcare AI assistant. Examine the prescription provided by the user and explain each medication, its purpose, dosage, timing, and potential side effects. Include practical advice on how to follow the prescription safely. Always include a disclaimer that this is for informational purposes only and advise consulting a doctor or pharmacist for precise guidance.",
+  "prescriptionReader": "Act as an expert assistant. Read and transcribe the text from the provided prescription image/document. Clearly state any medications, dosages, and instructions you can decipher. If unable to read, state Unable to decipher.. You must include a strong disclaimer that this is **not a substitute for professional medical advice**.",
   
   "medicineDescriber": "You are a healthcare AI assistant. Describe the medication, its therapeutic uses, mechanism of action, common side effects, and important precautions. Provide easy-to-understand guidance but include a disclaimer that this is not a substitute for professional medical advice. Recommend consulting a doctor or pharmacist for personalized advice.",
   

@@ -2,6 +2,9 @@ import React, { useState } from 'react'
 import axios from 'axios'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+
 
 const EnhancedSymptomChecker = () => {
   const navigate = useNavigate();
@@ -132,7 +135,8 @@ const EnhancedSymptomChecker = () => {
       }
 
       // Make API call to Gemini API
-      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+      // const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
       const response = await axios.post(apiUrl, {
         contents: requestParts,
         generationConfig: {
@@ -309,7 +313,13 @@ const EnhancedSymptomChecker = () => {
           {aiResponse && (
             <div className="w-full p-4 bg-green-50 border border-green-200 rounded-md mb-6">
               <h3 className="text-lg font-medium text-green-800 mb-2">{t('symptomChecker.aiResponse')}</h3>
-              <div className="text-green-700 whitespace-pre-line">{aiResponse}</div>
+              {/* <div className="text-green-700 whitespace-pre-line">{aiResponse}</div> */}
+              <div className="prose prose-green max-w-none">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {aiResponse}
+                </ReactMarkdown>
+              </div>
+
             </div>
           )}
 
