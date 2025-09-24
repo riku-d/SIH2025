@@ -1,0 +1,33 @@
+<svg width="400" height="400" viewBox="0 0 400 400" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background shape -->
+  <circle cx="200" cy="200" r="180" fill="#EBF4FF" />
+  
+  <!-- Doctor body -->
+  <path d="M160 320C160 320 140 280 140 240C140 200 160 180 200 180C240 180 260 200 260 240C260 280 240 320 240 320H160Z" fill="#FFFFFF" stroke="#3B82F6" stroke-width="4"/>
+  
+  <!-- Doctor head -->
+  <circle cx="200" cy="140" r="60" fill="#FFFFFF" stroke="#3B82F6" stroke-width="4"/>
+  
+  <!-- Doctor face -->
+  <circle cx="180" cy="130" r="5" fill="#1E40AF"/>
+  <circle cx="220" cy="130" r="5" fill="#1E40AF"/>
+  <path d="M190 160C190 160 200 170 210 160" stroke="#1E40AF" stroke-width="3" stroke-linecap="round"/>
+  
+  <!-- Stethoscope -->
+  <path d="M160 220C160 220 140 230 140 250C140 270 160 280 180 270" stroke="#3B82F6" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="130" cy="250" r="10" fill="#3B82F6"/>
+  
+  <!-- Medical cross -->
+  <rect x="190" y="220" width="40" height="40" rx="5" fill="#EF4444"/>
+  <rect x="200" y="210" width="20" height="60" rx="5" fill="#EF4444"/>
+  
+  <!-- Doctor hair -->
+  <path d="M140 120C140 120 150 80 200 80C250 80 260 120 260 120" fill="#1F2937"/>
+  
+  <!-- Medical symbols -->
+  <circle cx="300" cy="100" r="20" fill="#FFFFFF" stroke="#3B82F6" stroke-width="3"/>
+  <path d="M300 80V120M280 100H320" stroke="#3B82F6" stroke-width="3" stroke-linecap="round"/>
+  
+  <circle cx="100" cy="100" r="20" fill="#FFFFFF" stroke="#3B82F6" stroke-width="3"/>
+  <path d="M100 80V120M80 100H120" stroke="#3B82F6" stroke-width="3" stroke-linecap="round"/>
+</svg>

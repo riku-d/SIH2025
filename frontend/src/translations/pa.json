@@ -1,0 +1,155 @@
+{
+  "navbar": {
+    "home": "ਘਰ",
+    "doctors": "ਡਾਕਟਰ",
+    "features": " ਵਿਸ਼ੇਸ਼ਤਾਵਾਂ",
+    "about": "ਸਾਡੇ ਬਾਰੇ",
+    "contact": "ਸੰਪਰਕ",
+    "loginSignup": "ਲਾਗਿਨ / ਸਾਇਨ ਅੱਪ",
+    "dashboard": "ਡੈਸ਼ਬੋਰਡ",
+    "logout": "ਲਾਗਆਉਟ"
+  },
+  "hero": {
+    "title": "ਗ੍ਰਾਮੀਣ ਦੂਰਚਿੱਕਿਤਸਾ",
+    "subtitle": "ਤੁਹਾਡੇ ਗਾਂਵ ਵਿੱਚ ਗੁਣਵੱਤਾ ਵਾਲੀਆਂ ਸਿਹਤ ਸੇਵਾਵਾਂ ਲਿਆਉਣਾ",
+    "cta": "ਸ਼ੁਰੂ ਕਰੋ"
+  },
+  "features": {
+    "teleconsultation": {
+      "title": "ਟੈਲੀਕਨਸਲਟੇਸ਼ਨ",
+      "description": "ਘੱਟ ਬੈਂਡਵਿਡਥ ਲਈ ਓਪਟੀਮਾਈਜ਼ ਕੀਤੀਆਂ ਗਈਆਂ ਵੀਡੀਓ ਕਾਲਾਂ। ਸੀਮਤ ਇੰਟਰਨੈਟ ਦੇ ਨਾਲ ਵੀ, ਕਿਤੇ ਵੀ ਡਾਕਟਰਾਂ ਨਾਲ ਜੁੜੋ।"
+    },
+    "healthRecords": {
+      "title": "ਸਿਹਤ ਰਿਕਾਰਡ",
+      "description": "ਆਪਣੇ ਮੈਡੀਕਲ ਇਤਿਹਾਸ ਨੂੰ ਸੁਰੱਖਿਅਤ ਰੂਪ ਵਿੱਚ ਸਟੋਰ ਕਰੋ ਅਤੇ ਕਿਸੇ ਵੀ ਸਮੇਂ ਐਕਸੈਸ ਕਰੋ। ਆਫਲਾਈਨ ਐਕਸੈਸ ਲਈ ਜਾਂ ਹੋਰ ਸਿਹਤ ਸੇਵਾ ਪ੍ਰਦਾਤਾਵਾਂ ਨਾਲ ਸਾਂਝਾ ਕਰਨ ਲਈ ਪੀਡੀਐਫ ਰਿਪੋਰਟਾਂ ਡਾਊਨਲੋਡ ਕਰੋ।"
+    },
+    "medicineTracker": {
+      "title": "ਦਵਾ ਟਰੈਕਰ",
+      "description": "ਸਥਾਨਕ ਫਾਰਮੇਸੀਆਂ ਵਿੱਚ ਦਵਾਈਆਂ ਦੀ ਅਸਲ ਸਮੇਂ ਦੀ ਉਪਲਬਧਤਾ ਦੀ ਜਾਂਚ ਕਰੋ। ਜ਼ਰੂਰੀ ਦਵਾਈਆਂ ਵਾਪਸ ਆ ਜਾਣ 'ਤੇ ਸੂਚਿਤ ਕੀਤਾ ਜਾਂਦਾ ਹੈ।"
+    }
+  },
+  "mission": {
+    "title": "ਗਾਂਵੀ ਸਮੁਦਾਇਆਂ ਨੂੰ ਗੁਣਵੱਤਾ ਵਾਲੀ ਸਿਹਤ ਦੇਖਭਾਲ ਨਾਲ ਜੋੜਨਾ",
+    "description": "ਸਾਡਾ ਪਲੇਟਫਾਰਮ ਘੱਟ ਬੈਂਡਵਿਡਥ ਵਾਲੇ ਟੈਲੀਕਨਸਲਟੇਸ਼ਨ, ਡਿਜਿਟਲ ਸਿਹਤ ਰਿਕਾਰਡ ਅਤੇ ਅਸਲ ਸਮੇਂ ਵਿੱਚ ਦਵਾਈ ਉਪਲਬਧਤਾ ਟਰੈਕਿੰਗ ਪ੍ਰਦਾਨ ਕਰਦਾ ਹੈ ਜੋ ਖਾਸ ਤੌਰ 'ਤੇ ਸੀਮਤ ਕਨੈਕਟੀਵਿਟੀ ਵਾਲੇ ਗਾਂਵੀ ਸਮੁਦਾਇਆਂ ਲਈ ਡਿਜ਼ਾਈਨ ਕੀਤਾ ਗਿਆ ਹੈ।"
+  },
+  "services": {
+    "title": "ਸਾਡੀਆਂ ਸੇਵਾਵਾਂ",
+    "description": "ਗਾਂਵੀ ਸਮੁਦਾਇਆਂ ਲਈ ਤੈयਾਰ ਕੀਤੇ ਗਏ ਵਿਆਪਕ ਸਿਹਤ ਦੇਖਭਾਲ ਹੱਲ"
+  },
+  "impact": {
+    "title": "ਸਾਡਾ ਪ੍ਰਭਾਵ",
+    "description": "ਗਾਂਵੀ ਸਮੁਦਾਇਆਂ ਵਿੱਚ ਸਿਹਤ ਦੇਖਭਾਲ ਨੂੰ ਪਹੁੰਚਯੋਗ ਬਣਾਉਣਾ",
+    "villages": "ਕਵਰ ਕੀਤੇ ਗਏ ਗਾਂਵ",
+    "consultations": "ਸਲਾਹ",
+    "doctors": "ਡਾਕਟਰਾਂ",
+    "pharmacies": "ਫਾਰਮੇਸੀਆਂ"
+  },
+  "testimonials": {
+    "title": "ਲੋਕ ਕੀ ਕਹਿੰਦੇ ਹਨ",
+    "subtitle": "ਸਾਡੇ ਕਮਿਊਨਿਟੀ ਦੀਆਂ ਅਸਲ ਕਹਾਣੀਆਂ"
+  },
+  "cta": {
+    "title": "ਸ਼ੁਰੂ ਕਰਨ ਲਈ ਤਿਆਰ ਹੋ?",
+    "description": "ਹਜ਼ਾਰਾਂ ਉਪਭੋਗਤਾਵਾਂ ਵਿੱਚ ਸ਼ਾਮਲ ਹੋ ਜੋ ਪਹਿਲਾਂ ਹੀ ਸਾਡੇ ਦੂਰਚਿੱਕਿਤਸਾ ਪਲੇਟਫਾਰਮ ਤੋਂ ਲਾਭ ਪ੍ਰਾਪਤ ਕਰ ਰਹੇ ਹਨ। ਆਜ ਹੀ ਆਪਣੀ ਸਿਹਤ ਯਾਤਰਾ ਸ਼ੁਰੂ ਕਰੋ।",
+    "button": "ਹੁਣੇ ਸਾਇਨ ਅੱਪ ਕਰੋ - ਇਹ ਮੁਫ਼ਤ ਹੈ"
+  },
+  "footer": {
+    "aboutTitle": "ਸਾਡੇ ਬਾਰੇ",
+    "featuresTitle": " ਵਿਸ਼ੇਸ਼ਤਾਵਾਂ",
+    "quickLinksTitle": "ਤੇਜ਼ ਲਿੰਕਾਂ",
+    "contactTitle": "ਸੰਪਰਕ",
+    "copyright": "© {{year}} ਗ੍ਰਾਮੀਣ ਦੂਰਚਿੱਕਿਤਸਾ। ਸਭ ਅਧਿਕਾਰ ਸੁਰੱਖਿਅਤ ਹਨ। ਗ੍ਰਾਮੀਣ ਕਮਿਊਨਿਟੀਆਂ ਲਈ ❤️ ਨਾਲ ਬਣਾਇਆ ਗਿਆ।",
+    "infoEmail": "info@ruralmed.org",
+    "phoneNumber": "+91 98765 43210"
+  },
+  "login": {
+    "title": "ਲਾਗਿਨ",
+    "email": "ਈਮੇਲ",
+    "password": "ਪਾਸਵਰਡ",
+    "forgotPassword": "ਪਾਸਵਰਡ ਭੁੱਲ ਗਏ?",
+    "signIn": "ਸਾਈਨ ਇਨ ਕਰੋ",
+    "noAccount": "ਕੋਈ ਖਾਤਾ ਨਹੀਂ ਹੈ?",
+    "register": "ਰਜਿਸਟਰ ਕਰੋ"
+  },
+  "signup": {
+    "title": "ਸਾਇਨ ਅੱਪ",
+    "name": "ਨਾਮ",
+    "email": "ਈਮੇਲ",
+    "password": "ਪਾਸਵਰਡ",
+    "confirmPassword": "ਪਾਸਵਰਡ ਦੀ ਪੁਸ਼ਟੀ ਕਰੋ",
+    "role": "ਭੂਮਿਕਾ",
+    "patient": "ਮਰੀਜ਼",
+    "doctor": "ਡਾਕਟਰ",
+    "pharmacy": "ਫਾਰਮੇਸੀ",
+    "alreadyHaveAccount": "ਪਹਿਲਾਂ ਤੋਂ ਹੀ ਖਾਤਾ ਹੈ?",
+    "signIn": "ਸਾਈਨ ਇਨ ਕਰੋ",
+    "register": "ਰਜਿਸਟਰ ਕਰੋ"
+  },
+  "patientDashboard": {
+    "title": "ਮਰੀਜ਼ ਡੈਸ਼ਬੋਰਡ",
+    "quickActions": "ਤੇਜ਼ ਕਾਰਵਾਈਆਂ",
+    "findDoctors": "ਡਾਕਟਰ ਲੱਭੋ",
+    "myAppointments": "ਮੇਰੀਆਂ ਮੁਲਾਕਾਤਾਂ",
+    "viewHealthRecords": "ਸਿਹਤ ਰਿਕਾਰਡ ਵੇਖੋ",
+    "editProfile": "ਪ੍ਰੋਫਾਈਲ ਸੰਪਾਦਿਤ ਕਰੋ",
+    "symptomChecker": "AI ਲੱਛਣ ਚੈਕਰ",
+    "describeSymptoms": "ਆਪਣੇ ਲੱਛਣਾਂ ਦਾ ਵਰਣਨ ਕਰੋ...",
+    "check": "ਚੈਕ ਕਰੋ",
+    "checking": "ਚੈਕ ਹੋ ਰਿਹਾ ਹੈ...",
+    "healthRecords": "ਸਿਹਤ ਰਿਕਾਰਡ",
+    "appointments": "ਮੁਲਾਕਾਤਾਂ",
+    "profile": "ਪ੍ਰੋਫਾਈਲ"
+  },
+  "doctorDashboard": {
+    "title": "ਡਾਕਟਰ ਡੈਸ਼ਬੋਰਡ",
+    "appointments": "ਮੁਲਾਕਾਤਾਂ",
+    "profile": "ਪ੍ਰੋਫਾਈਲ",
+    "patientTracker": "ਮਰੀਜ਼ ਟਰੈਕਰ",
+    "videoConsultation": "ਵੀਡੀਓ ਸਲਾਹ",
+    "backToAppointments": "ਮੁਲਾਕਾਤਾਂ 'ਤੇ ਵਾਪਸ ਜਾਓ"
+  },
+  "appointments": {
+    "bookAppointment": "ਮੁਲਾਕਾਤ ਬੁੱਕ ਕਰੋ",
+    "date": "ਤਾਰੀਖ",
+    "symptoms": "ਲੱਛਣ",
+    "consultationType": "ਸਲਾਹ ਦੀ ਕਿਸਮ",
+    "video": "ਵੀਡੀਓ",
+    "audio": "ਆਡੀਓ",
+    "submit": "ਜਮ੍ਹਾ ਕਰੋ",
+    "confirm": "ਪੁਸ਼ਟੀ ਕਰੋ",
+    "reject": "ਰੱਦ ਕਰੋ",
+    "confirmDate": "ਪੁਸ਼ਟੀ ਤਾਰੀਖ",
+    "timeSlot": "ਸਮਾਂ ਸਲਾਟ",
+    "doctorNotes": "ਡਾਕਟਰ ਦੇ ਨੋਟ",
+    "rejectionReason": "ਰੱਦੀ ਦਾ ਕਾਰਨ"
+  },
+  "profile": {
+    "title": "ਪ੍ਰੋਫਾਈਲ ਸੰਪਾਦਿਤ ਕਰੋ",
+    "save": "ਸੰਭਾਲੋ",
+    "cancel": "ਰੱਦ ਕਰੋ",
+    "edit": "ਸੰਪਾਦਿਤ ਕਰੋ"
+  },
+  "doctorDetails": {
+    "bookNow": "ਹੁਣੇ ਬੁੱਕ ਕਰੋ",
+    "specialization": "ਸਪੈਸ਼ਲਾਈਜੇਸ਼ਨ",
+    "qualification": "ਯੋਗਤਾ",
+    "availability": "ਪ੍ਰાપਤਤਾ"
+  },
+  "symptomChecker": {
+    "result": {
+      "condition": "ਹਾਲਤ",
+      "advice": "ਸਲਾਹ"
+    }
+  },
+  "languages": {
+    "english": "ਅੰਗਰੇਜ਼ੀ",
+    "hindi": "ਹਿੰਦੀ",
+    "punjabi": "ਪੰਜਾਬੀ"
+  },
+  "errors": {
+    "somethingWentWrong": "ਕੁਝ ਗਲਤ ਹੋ ਗਿਆ।",
+    "errorFetchingProfile": "ਪ੍ਰੋਫਾਈਲ ਫੈਚ ਕਰਨ ਵਿੱਚ ਗਲਤੀ",
+    "loginError": "ਗਲਤ ਈਮੇਲ ਜਾਂ ਪਾਸਵਰਡ",
+    "registerError": "ਰਜਿਸਟ੍ਰੇਸ਼ਨ ਦੌਰਾਨ ਗਲਤੀ"
+  }
+}

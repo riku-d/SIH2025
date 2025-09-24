@@ -1,0 +1,155 @@
+{
+  "navbar": {
+    "home": "Home",
+    "doctors": "Doctors",
+    "features": "Features",
+    "about": "About",
+    "contact": "Contact",
+    "loginSignup": "Login / Sign Up",
+    "dashboard": "Dashboard",
+    "logout": "Logout"
+  },
+  "hero": {
+    "title": "Rural Telemedicine",
+    "subtitle": "Bringing quality healthcare to your village",
+    "cta": "Get Started"
+  },
+  "features": {
+    "teleconsultation": {
+      "title": "Teleconsultation",
+      "description": "Video calls optimized for low bandwidth with simple room joining. Connect with doctors from anywhere, even with limited internet."
+    },
+    "healthRecords": {
+      "title": "Health Records",
+      "description": "Store your medical history securely and access it anytime. Download PDF reports for offline access or to share with other healthcare providers."
+    },
+    "medicineTracker": {
+      "title": "Medicine Tracker",
+      "description": "Check real-time availability of medicines at local pharmacies. Get notified when essential medications are back in stock."
+    }
+  },
+  "mission": {
+    "title": "Connecting Rural Communities to Quality Healthcare",
+    "description": "Our platform provides low-bandwidth teleconsultations, digital health records, and real-time medicine availability tracking designed specifically for rural communities with limited connectivity."
+  },
+  "services": {
+    "title": "Our Services",
+    "description": "Comprehensive healthcare solutions tailored for rural communities"
+  },
+  "impact": {
+    "title": "Our Impact",
+    "description": "Making healthcare accessible across rural communities",
+    "villages": "Villages Covered",
+    "consultations": "Consultations",
+    "doctors": "Doctors",
+    "pharmacies": "Pharmacies"
+  },
+  "testimonials": {
+    "title": "What People Say",
+    "subtitle": "Real stories from our community"
+  },
+  "cta": {
+    "title": "Ready to Get Started?",
+    "description": "Join thousands of users who are already benefiting from our telemedicine platform. Start your healthcare journey today.",
+    "button": "Sign Up Now - It's Free"
+  },
+  "footer": {
+    "aboutTitle": "About Us",
+    "featuresTitle": "Features",
+    "quickLinksTitle": "Quick Links",
+    "contactTitle": "Contact",
+    "copyright": "© {{year}} Rural Telemedicine. All rights reserved. Built with ❤️ for rural communities.",
+    "infoEmail": "info@ruralmed.org",
+    "phoneNumber": "+91 98765 43210"
+  },
+  "login": {
+    "title": "Login",
+    "email": "Email",
+    "password": "Password",
+    "forgotPassword": "Forgot Password?",
+    "signIn": "Sign In",
+    "noAccount": "Don't have an account?",
+    "register": "Register"
+  },
+  "signup": {
+    "title": "Sign Up",
+    "name": "Name",
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Confirm Password",
+    "role": "Role",
+    "patient": "Patient",
+    "doctor": "Doctor",
+    "pharmacy": "Pharmacy",
+    "alreadyHaveAccount": "Already have an account?",
+    "signIn": "Sign In",
+    "register": "Register"
+  },
+  "patientDashboard": {
+    "title": "Patient Dashboard",
+    "quickActions": "Quick Actions",
+    "findDoctors": "Find Doctors",
+    "myAppointments": "My Appointments",
+    "viewHealthRecords": "View Health Records",
+    "editProfile": "Edit Profile",
+    "symptomChecker": "AI Symptom Checker",
+    "describeSymptoms": "Describe your symptoms...",
+    "check": "Check",
+    "checking": "Checking...",
+    "healthRecords": "Health Records",
+    "appointments": "Appointments",
+    "profile": "Profile"
+  },
+  "doctorDashboard": {
+    "title": "Doctor Dashboard",
+    "appointments": "Appointments",
+    "profile": "Profile",
+    "patientTracker": "Patient Tracker",
+    "videoConsultation": "Video Consultation",
+    "backToAppointments": "Back to Appointments"
+  },
+  "appointments": {
+    "bookAppointment": "Book Appointment",
+    "date": "Date",
+    "symptoms": "Symptoms",
+    "consultationType": "Consultation Type",
+    "video": "Video",
+    "audio": "Audio",
+    "submit": "Submit",
+    "confirm": "Confirm",
+    "reject": "Reject",
+    "confirmDate": "Confirm Date",
+    "timeSlot": "Time Slot",
+    "doctorNotes": "Doctor Notes",
+    "rejectionReason": "Rejection Reason"
+  },
+  "profile": {
+    "title": "Edit Profile",
+    "save": "Save",
+    "cancel": "Cancel",
+    "edit": "Edit"
+  },
+  "doctorDetails": {
+    "bookNow": "Book Now",
+    "specialization": "Specialization",
+    "qualification": "Qualification",
+    "availability": "Availability"
+  },
+  "symptomChecker": {
+    "result": {
+      "condition": "Condition",
+      "advice": "Advice"
+    }
+  },
+  "languages": {
+    "english": "English",
+    "hindi": "Hindi",
+    "punjabi": "Punjabi"
+  },
+  "errors": {
+    "somethingWentWrong": "Something went wrong.",
+    "errorFetchingProfile": "Error fetching profile",
+    "loginError": "Invalid email or password",
+    "registerError": "Error during registration"
+  }
+}

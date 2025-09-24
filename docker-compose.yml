@@ -1,0 +1,38 @@
+version: '3.9'
+services:
+  mongo:
+    image: mongo:6
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+  backend:
+    build: ./backend
+    command: npm run dev
+    environment:
+      - MONGO_URI=mongodb://mongo:27017/telemedicine_mvp
+      - JWT_SECRET=dev_secret
+      - FRONTEND_URL=http://localhost:5173
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - mongo
+  frontend:
+    build: ./frontend
+    command: npm run dev -- --host
+    environment:
+      - VITE_API_URL=http://localhost:5000/api
+      - VITE_SIGNAL_URL=http://localhost:5000
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+    depends_on:
+      - backend
+volumes:
+  mongo_data:
+
+
