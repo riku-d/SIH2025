@@ -18,17 +18,20 @@ dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
+
+const allowedOrigins = [
+    process.env.FRONTEND_URL || 'http://localhost:5173',
+    'http://localhost:5173',
+    'http://localhost:5174',
+    'http://localhost:5175',
+    'http://localhost:5176',
+    'http://localhost:3000',
+    'https://sih-2025-qp9g.vercel.app'
+];
+
 const io = new SocketIOServer(server, {
-	cors: {
-        origin: [
-            process.env.FRONTEND_URL || 'http://localhost:5173',
-            'http://localhost:5173',
-            'http://localhost:5174',
-            'http://localhost:5175',
-            'http://localhost:5176',
-            'http://localhost:3000',
-			'https://sih-2025-qp9g.vercel.app'
-        ],
+    cors: {
+        origin: allowedOrigins,
         methods: ['GET', 'POST'],
         credentials: true
     }
@@ -39,20 +42,13 @@ await connectDB();
 
 // Middleware
 app.use(cors({
-    origin: [
-        process.env.FRONTEND_URL || 'http://localhost:5173',
-        'http://localhost:5173',
-        'http://localhost:5174',
-        'http://localhost:5175',
-        'http://localhost:5176',
-        'http://localhost:3000'
-    ],
+    origin: allowedOrigins,
     credentials: true
 }));
+
 app.use(express.json());
 app.use(morgan('dev'));
-app.use(attachSocketIO(io)); // Attach socket.io to requests
-
+app.use(attachSocketIO(io));
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/appointments', appointmentRoutes);
@@ -117,8 +113,10 @@ io.on('connection', (socket) => {
     });
 });
 
-// const PORT = process.env.PORT || 5000;
 const PORT = process.env.PORT || 5001;
-server.listen(PORT, () => console.log(`Backend running on port ${PORT}`));
+
+server.listen(PORT, '0.0.0.0', () => {
+    console.log(`Backend running on port ${PORT}`);
+});
 
 
