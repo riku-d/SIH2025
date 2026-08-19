@@ -1,9 +1,12 @@
 import React, { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import Dashboard from '../components/Dashboard'
-import api from '../services/api'
+import PageLayout from '../components/PageLayout'
+import { useToast } from '../components/ui/Toast'
+import api, { friendlyError } from '../services/api'
+import { Field, Input } from '../components/ui/Field'
 
 export default function CheckoutPage() {
+  const toast = useToast()
   const { pharmacyId } = useParams()
   const navigate = useNavigate()
   const user = JSON.parse(localStorage.getItem('user') || 'null')
@@ -24,6 +27,7 @@ export default function CheckoutPage() {
   })
   const [notes, setNotes] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [addressErrors, setAddressErrors] = useState({})
 
   useEffect(() => {
     if (!user || user.role !== 'patient') {
@@ -40,7 +44,7 @@ export default function CheckoutPage() {
       // Fetch cart
       const { data: cartData } = await api.get(`/pharmacy/cart/${pharmacyId}`)
       if (!cartData || cartData.items?.length === 0) {
-        alert('Your cart is empty!')
+        toast.error('Your cart is empty!')
         navigate(`/pharmacy-shop/${pharmacyId}`)
         return
       }
@@ -57,7 +61,7 @@ export default function CheckoutPage() {
       
     } catch (error) {
       console.error('Error fetching checkout data:', error)
-      alert('Error loading checkout data')
+      toast.error('Error loading checkout data')
       navigate(`/pharmacy-shop/${pharmacyId}`)
     } finally {
       setLoading(false)
@@ -77,32 +81,24 @@ export default function CheckoutPage() {
     return cart.totalAmount + calculateDeliveryFee()
   }
 
+  const clearAddressError = (key) =>
+    setAddressErrors(prev => (prev[key] ? { ...prev, [key]: undefined } : prev))
+
   const validateForm = () => {
-    if (orderType === 'delivery') {
-      if (!deliveryAddress.name.trim()) {
-        alert('Please enter your name')
-        return false
-      }
-      if (!deliveryAddress.phone.trim()) {
-        alert('Please enter your phone number')
-        return false
-      }
-      if (!deliveryAddress.addressLine1.trim()) {
-        alert('Please enter your address')
-        return false
-      }
-      if (!deliveryAddress.city.trim()) {
-        alert('Please enter your city')
-        return false
-      }
-      if (!deliveryAddress.state.trim()) {
-        alert('Please enter your state')
-        return false
-      }
-      if (!deliveryAddress.pincode.trim()) {
-        alert('Please enter your pincode')
-        return false
-      }
+    if (orderType !== 'delivery') return true
+    const next = {}
+    if (!deliveryAddress.name.trim()) next.name = 'Please enter the name for delivery.'
+    if (!deliveryAddress.phone.trim()) next.phone = 'Please enter a phone number.'
+    else if (!/^[0-9]{10}$/.test(deliveryAddress.phone.replace(/\D/g, '').slice(-10))) next.phone = 'Enter a 10-digit mobile number.'
+    if (!deliveryAddress.addressLine1.trim()) next.addressLine1 = 'Please enter the address.'
+    if (!deliveryAddress.city.trim()) next.city = 'Please enter the city or village.'
+    if (!deliveryAddress.state.trim()) next.state = 'Please enter the state.'
+    if (!deliveryAddress.pincode.trim()) next.pincode = 'Please enter the pincode.'
+    else if (!/^[0-9]{6}$/.test(deliveryAddress.pincode.trim())) next.pincode = 'A pincode is 6 digits.'
+    setAddressErrors(next)
+    if (Object.keys(next).length) {
+      document.querySelector('[aria-invalid="true"]')?.focus()
+      return false
     }
     return true
   }
@@ -129,7 +125,8 @@ export default function CheckoutPage() {
       navigate(`/order-success/${data._id}`)
       
     } catch (error) {
-      alert('Error placing order: ' + error.response?.data?.message)
+      console.error('Order failed:', error)
+      toast.error(friendlyError(error))
     } finally {
       setSubmitting(false)
     }
@@ -141,17 +138,17 @@ export default function CheckoutPage() {
 
   if (loading) {
     return (
-      <Dashboard title="Checkout">
+      <PageLayout title="Checkout">
         <div className="flex justify-center items-center h-64">
           <div className="text-lg">Loading checkout...</div>
         </div>
-      </Dashboard>
+      </PageLayout>
     )
   }
 
   if (!cart || !pharmacy) {
     return (
-      <Dashboard title="Checkout">
+      <PageLayout title="Checkout">
         <div className="text-center py-12">
           <div className="text-gray-500 text-lg">Unable to load checkout data</div>
           <button 
@@ -161,12 +158,12 @@ export default function CheckoutPage() {
             Back to Shop
           </button>
         </div>
-      </Dashboard>
+      </PageLayout>
     )
   }
 
   return (
-    <Dashboard title={`Checkout - ${pharmacy.name}`}>
+    <PageLayout title={`Checkout - ${pharmacy.name}`}>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
         {/* Main Checkout Form */}
@@ -236,54 +233,69 @@ export default function CheckoutPage() {
               <div className="card-body">
                 <h3 className="section-title mb-4">Delivery Address</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <input
-                    className="input"
-                    placeholder="Full Name *"
-                    value={deliveryAddress.name}
-                    onChange={e => setDeliveryAddress({...deliveryAddress, name: e.target.value})}
-                  />
-                  <input
-                    className="input"
-                    placeholder="Phone Number *"
-                    value={deliveryAddress.phone}
-                    onChange={e => setDeliveryAddress({...deliveryAddress, phone: e.target.value})}
-                  />
-                  <input
-                    className="input md:col-span-2"
-                    placeholder="Address Line 1 *"
-                    value={deliveryAddress.addressLine1}
-                    onChange={e => setDeliveryAddress({...deliveryAddress, addressLine1: e.target.value})}
-                  />
-                  <input
-                    className="input md:col-span-2"
-                    placeholder="Address Line 2 (Optional)"
-                    value={deliveryAddress.addressLine2}
-                    onChange={e => setDeliveryAddress({...deliveryAddress, addressLine2: e.target.value})}
-                  />
-                  <input
-                    className="input"
-                    placeholder="City *"
-                    value={deliveryAddress.city}
-                    onChange={e => setDeliveryAddress({...deliveryAddress, city: e.target.value})}
-                  />
-                  <input
-                    className="input"
-                    placeholder="State *"
-                    value={deliveryAddress.state}
-                    onChange={e => setDeliveryAddress({...deliveryAddress, state: e.target.value})}
-                  />
-                  <input
-                    className="input"
-                    placeholder="Pincode *"
-                    value={deliveryAddress.pincode}
-                    onChange={e => setDeliveryAddress({...deliveryAddress, pincode: e.target.value})}
-                  />
-                  <input
-                    className="input"
-                    placeholder="Landmark (Optional)"
-                    value={deliveryAddress.landmark}
-                    onChange={e => setDeliveryAddress({...deliveryAddress, landmark: e.target.value})}
-                  />
+                  <Field label="Full name" error={addressErrors.name} required>
+                    {(props) => (
+                      <Input {...props} autoComplete="name" error={addressErrors.name}
+                        value={deliveryAddress.name}
+                        onChange={e => { setDeliveryAddress({...deliveryAddress, name: e.target.value}); clearAddressError('name') }} />
+                    )}
+                  </Field>
+                  <Field label="Phone number" error={addressErrors.phone} required>
+                    {(props) => (
+                      <Input {...props} type="tel" inputMode="tel" autoComplete="tel" error={addressErrors.phone}
+                        placeholder="10-digit mobile number"
+                        value={deliveryAddress.phone}
+                        onChange={e => { setDeliveryAddress({...deliveryAddress, phone: e.target.value}); clearAddressError('phone') }} />
+                    )}
+                  </Field>
+                  <div className="md:col-span-2">
+                    <Field label="Address line 1" error={addressErrors.addressLine1} required>
+                      {(props) => (
+                        <Input {...props} autoComplete="address-line1" error={addressErrors.addressLine1}
+                          placeholder="House number, street"
+                          value={deliveryAddress.addressLine1}
+                          onChange={e => { setDeliveryAddress({...deliveryAddress, addressLine1: e.target.value}); clearAddressError('addressLine1') }} />
+                      )}
+                    </Field>
+                  </div>
+                  <div className="md:col-span-2">
+                    <Field label="Address line 2" hint="Optional">
+                      {(props) => (
+                        <Input {...props} autoComplete="address-line2"
+                          value={deliveryAddress.addressLine2}
+                          onChange={e => setDeliveryAddress({...deliveryAddress, addressLine2: e.target.value})} />
+                      )}
+                    </Field>
+                  </div>
+                  <Field label="City or village" error={addressErrors.city} required>
+                    {(props) => (
+                      <Input {...props} autoComplete="address-level2" error={addressErrors.city}
+                        value={deliveryAddress.city}
+                        onChange={e => { setDeliveryAddress({...deliveryAddress, city: e.target.value}); clearAddressError('city') }} />
+                    )}
+                  </Field>
+                  <Field label="State" error={addressErrors.state} required>
+                    {(props) => (
+                      <Input {...props} autoComplete="address-level1" error={addressErrors.state}
+                        value={deliveryAddress.state}
+                        onChange={e => { setDeliveryAddress({...deliveryAddress, state: e.target.value}); clearAddressError('state') }} />
+                    )}
+                  </Field>
+                  <Field label="Pincode" error={addressErrors.pincode} required>
+                    {(props) => (
+                      <Input {...props} inputMode="numeric" maxLength="6" autoComplete="postal-code" error={addressErrors.pincode}
+                        placeholder="6 digits"
+                        value={deliveryAddress.pincode}
+                        onChange={e => { setDeliveryAddress({...deliveryAddress, pincode: e.target.value}); clearAddressError('pincode') }} />
+                    )}
+                  </Field>
+                  <Field label="Landmark" hint="Optional">
+                    {(props) => (
+                      <Input {...props} placeholder="Near the school, temple…"
+                        value={deliveryAddress.landmark}
+                        onChange={e => setDeliveryAddress({...deliveryAddress, landmark: e.target.value})} />
+                    )}
+                  </Field>
                 </div>
               </div>
             </div>
@@ -411,6 +423,6 @@ export default function CheckoutPage() {
           </button>
         </div>
       </div>
-    </Dashboard>
+    </PageLayout>
   )
 }

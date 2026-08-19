@@ -1,428 +1,120 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import api from '../services/api';
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
+import api from '../services/api'
+import DoctorCard from '../components/DoctorCard'
+import PageHeader from '../components/ui/PageHeader'
+import Card, { CardBody } from '../components/ui/Card'
+import { Field, Input, Select } from '../components/ui/Field'
+import { SkeletonGrid } from '../components/ui/Skeleton'
+import { EmptyState, ErrorState } from '../components/ui/States'
 
 export default function DoctorsPage() {
-  const [doctorsBySpecialty, setDoctorsBySpecialty] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedSpecialty, setSelectedSpecialty] = useState('');
-  const [selectedDoctor, setSelectedDoctor] = useState(null);
-  const [refreshing, setRefreshing] = useState(false);
-  const [lastUpdated, setLastUpdated] = useState(null);
-  const navigate = useNavigate();
+  const { t } = useTranslation()
+  const navigate = useNavigate()
 
-  const fetchDoctors = async (isRefresh = false) => {
+  const [doctorsBySpecialty, setDoctorsBySpecialty] = useState({})
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
+  const [query, setQuery] = useState('')
+  const [specialty, setSpecialty] = useState('')
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    setLoadError(false)
     try {
-      if (isRefresh) {
-        setRefreshing(true);
-      } else {
-        setLoading(true);
-      }
-      setError(null);
-      
-      // Add timestamp to prevent caching and ensure fresh data
-      const timestamp = new Date().getTime();
-      const response = await api.get(`/users/doctors/specialization?t=${timestamp}`);
-      console.log('Fetched doctors from database:', response.data);
-      
-      setDoctorsBySpecialty(response.data || {});
-      setLastUpdated(new Date());
-      
-      // Set the first specialty as selected by default if available and not refreshing
-      if (!isRefresh) {
-        const specialties = Object.keys(response.data || {});
-        if (specialties.length > 0) {
-          setSelectedSpecialty(specialties[0]);
-        }
-      }
+      const { data } = await api.get('/users/doctors/specialization')
+      setDoctorsBySpecialty(data || {})
     } catch (err) {
-      console.error('Error fetching doctors:', err);
-      if (err.response?.status === 401) {
-        setError('Please log in to view doctors.');
-      } else if (err.response?.status === 403) {
-        setError('You do not have permission to view doctors.');
-      } else {
-        setError(`Failed to load doctors: ${err.response?.data?.message || err.message}`);
-      }
+      console.error('Failed to load doctors:', err)
+      setLoadError(true)
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      setLoading(false)
     }
-  };
+  }, [])
 
-  useEffect(() => {
-    fetchDoctors();
-  }, []);
+  useEffect(() => { load() }, [load])
 
-  const handleRefresh = () => {
-    fetchDoctors(true);
-  };
+  const specialties = useMemo(() => Object.keys(doctorsBySpecialty).sort(), [doctorsBySpecialty])
 
-  // Get all doctors as flat array for search
-  const allDoctors = Object.values(doctorsBySpecialty).flat();
-  const specialties = Object.keys(doctorsBySpecialty);
+  const doctors = useMemo(() => {
+    const pool = specialty
+      ? (doctorsBySpecialty[specialty] || [])
+      : Object.values(doctorsBySpecialty).flat()
+    const q = query.trim().toLowerCase()
+    if (!q) return pool
+    return pool.filter(d =>
+      d.name?.toLowerCase().includes(q) ||
+      d.specialization?.toLowerCase().includes(q)
+    )
+  }, [doctorsBySpecialty, specialty, query])
 
-  // Filter doctors based on search and specialty
-  const getFilteredDoctors = () => {
-    let doctors = selectedSpecialty ? doctorsBySpecialty[selectedSpecialty] || [] : allDoctors;
-    
-    if (searchTerm) {
-      doctors = doctors.filter(doctor => 
-        doctor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (doctor.specialization && doctor.specialization.toLowerCase().includes(searchTerm.toLowerCase()))
-      );
-    }
-    
-    return doctors;
-  };
-  
-  const filteredDoctors = getFilteredDoctors();
-
-  const handleViewProfile = (doctor) => {
-    setSelectedDoctor(doctor);
-  };
-  
-  const handleBookAppointment = (doctor) => {
-    navigate(`/doctors/${doctor._id}`);
-  };
-  
-  const handleCloseModal = () => {
-    setSelectedDoctor(null);
-  };
-
-  if (loading) {
-    return (
-      <div className="container-app py-10">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-slate-600">Loading doctors...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error && !refreshing) {
-    return (
-      <div className="container-app py-10">
-        <div className="card bg-red-50 border-red-200">
-          <div className="card-body text-center">
-            <div className="text-red-600 text-xl mb-2">⚠️ Error</div>
-            <p className="text-red-700 mb-4">{error}</p>
-            <button 
-              onClick={() => fetchDoctors()} 
-              className="btn-primary"
-            >
-              Try Again
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // One profile, at /doctors/:id — the old "View details" opened a modal
+  // that duplicated the whole page.
+  const openProfile = (doctor) => navigate(`/doctors/${doctor._id}`)
 
   return (
-    <div className="container-app py-8">
-      {/* Header */}
-      <div className="mb-8">
-        <div className="flex justify-between items-start mb-4">
-          <div>
-            <h1 className="text-4xl font-bold text-slate-800 mb-2">Find a Doctor</h1>
-            <p className="text-slate-600 text-lg">Connect with qualified healthcare professionals in your area</p>
-          </div>
-          <button
-            onClick={handleRefresh}
-            disabled={refreshing}
-            className={`flex items-center px-4 py-2 rounded-lg font-medium transition-all ${
-              refreshing 
-                ? 'bg-gray-100 text-gray-500 cursor-not-allowed' 
-                : 'bg-blue-50 text-blue-700 hover:bg-blue-100 active:bg-blue-200'
-            }`}
-          >
-            <svg 
-              className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} 
-              fill="currentColor" 
-              viewBox="0 0 20 20"
-            >
-              <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
-            </svg>
-            {refreshing ? 'Refreshing...' : 'Refresh'}
-          </button>
-        </div>
-      </div>
+    <div className="container-app py-6 sm:py-8">
+      <PageHeader title={t('doctors.title')} description={t('doctors.subtitle')} />
 
-      {/* Search and Filter */}
-      <div className="card mb-8">
-        <div className="card-body">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1">
-              <label className="block text-sm font-medium text-slate-700 mb-2">Search Doctors</label>
-              <input
-                type="text"
-                placeholder="Search by name or specialization..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="input"
-              />
-            </div>
-            <div className="md:w-64">
-              <label className="block text-sm font-medium text-slate-700 mb-2">Filter by Specialty</label>
-              <select
-                value={selectedSpecialty}
-                onChange={(e) => setSelectedSpecialty(e.target.value)}
-                className="input"
-              >
-                <option value="">All Specialties</option>
-                {specialties.map(specialty => (
-                  <option key={specialty} value={specialty}>
-                    {specialty}
-                  </option>
-                ))}
-              </select>
-            </div>
+      <Card className="mb-6">
+        <CardBody>
+          <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
+            <Field label={t('common.search')}>
+              {(props) => (
+                <Input
+                  {...props} type="search" placeholder={t('doctors.searchPlaceholder')}
+                  value={query} onChange={(e) => setQuery(e.target.value)}
+                />
+              )}
+            </Field>
+            <Field label={t('doctors.specialty')}>
+              {(props) => (
+                <Select {...props} value={specialty} onChange={(e) => setSpecialty(e.target.value)} className="sm:w-56">
+                  <option value="">{t('doctors.allSpecialties')}</option>
+                  {specialties.map(s => <option key={s} value={s}>{s}</option>)}
+                </Select>
+              )}
+            </Field>
           </div>
-        </div>
-      </div>
+        </CardBody>
+      </Card>
 
-      {/* Results count */}
-      <div className="mb-6 flex justify-between items-center">
-        <p className="text-slate-600">
-          Found {filteredDoctors.length} doctor{filteredDoctors.length !== 1 ? 's' : ''}
-          {selectedSpecialty && ` in ${selectedSpecialty}`}
-        </p>
-        {lastUpdated && (
-          <p className="text-sm text-slate-500">
-            Last updated: {lastUpdated.toLocaleTimeString()}
-          </p>
-        )}
-      </div>
-
-      {/* Doctors Grid */}
-      {filteredDoctors.length === 0 ? (
-        <div className="card">
-          <div className="card-body text-center py-12">
-            <div className="text-slate-400 text-6xl mb-4">👨‍⚕️</div>
-            <h3 className="text-xl font-semibold text-slate-800 mb-2">No doctors found</h3>
-            <p className="text-slate-600">Try adjusting your search criteria</p>
-          </div>
-        </div>
+      {loading ? (
+        <SkeletonGrid count={6} />
+      ) : loadError ? (
+        <Card><CardBody>
+          <ErrorState title={t('doctors.loadError')} onRetry={load} retryLabel={t('common.retry')} />
+        </CardBody></Card>
+      ) : doctors.length === 0 ? (
+        <Card><CardBody>
+          <EmptyState
+            icon={
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
+                <circle cx="11" cy="11" r="7" /><path strokeLinecap="round" d="M20 20l-3.5-3.5" />
+              </svg>
+            }
+            title={t('doctors.empty')}
+            message={t('doctors.emptyHelp')}
+          />
+        </CardBody></Card>
       ) : (
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredDoctors.map(doctor => (
-            <div key={doctor._id} className="card hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
-              <div className="card-body">
-                {/* Doctor Avatar */}
-                <div className="flex items-center mb-4">
-                  <div className="h-16 w-16 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white text-2xl font-bold mr-4">
-                    {doctor.profilePicture ? (
-                      <img 
-                        src={doctor.profilePicture} 
-                        alt={doctor.name} 
-                        className="h-16 w-16 rounded-full object-cover"
-                      />
-                    ) : (
-                      doctor.name.charAt(0)
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-bold text-lg text-slate-800">{doctor.name}</h3>
-                    <p className="text-blue-600 font-medium">{doctor.specialization || 'General Physician'}</p>
-                  </div>
-                </div>
-
-                {/* Doctor Info */}
-                <div className="space-y-2 mb-4">
-                  {doctor.qualification && (
-                    <div className="flex items-center text-slate-600">
-                      <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M10.394 2.08a1 1 0 00-.788 0l-7 3a1 1 0 000 1.84L5.25 8.051a.999.999 0 01.356-.257l4-1.714a1 1 0 11.788 1.838L7.667 9.088l1.94.831a1 1 0 00.787 0l7-3a1 1 0 000-1.838l-7-3zM3.31 9.397L5 10.12v4.102a8.969 8.969 0 00-1.05-.174 1 1 0 01-.89-.89 11.115 11.115 0 01.25-3.762zM9.3 16.573A9.026 9.026 0 007 14.935v-3.957l1.818.78a3 3 0 002.364 0l5.508-2.361a11.026 11.026 0 01.25 3.762 1 1 0 01-.89.89 8.968 8.968 0 00-5.75 2.524z"/>
-                      </svg>
-                      <span className="text-sm">{doctor.qualification}</span>
-                    </div>
-                  )}
-                  
-                  {doctor.availability && (
-                    <div className="flex items-center text-slate-600">
-                      <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd"/>
-                      </svg>
-                      <span className="text-sm">Available: {doctor.availability}</span>
-                    </div>
-                  )}
-
-                  <div className="flex items-center text-green-600">
-                    <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-                    <span className="text-sm font-medium">Available for consultation</span>
-                  </div>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleViewProfile(doctor)}
-                    className="flex-1 btn-secondary py-2 font-semibold"
-                  >
-                    View Details
-                  </button>
-                  <button
-                    onClick={() => handleBookAppointment(doctor)}
-                    className="flex-1 btn-primary py-2 font-semibold"
-                  >
-                    Book Appointment
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-      
-      {/* Doctor Detail Modal */}
-      {selectedDoctor && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              {/* Modal Header */}
-              <div className="flex justify-between items-start mb-6">
-                <h2 className="text-2xl font-bold text-slate-800">Doctor Details</h2>
-                <button
-                  onClick={handleCloseModal}
-                  className="text-slate-500 hover:text-slate-700 text-2xl"
-                >
-                  ×
-                </button>
-              </div>
-              
-              {/* Doctor Profile */}
-              <div className="flex items-start mb-6">
-                <div className="h-20 w-20 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white text-2xl font-bold mr-6 flex-shrink-0">
-                  {selectedDoctor.profilePicture ? (
-                    <img 
-                      src={selectedDoctor.profilePicture} 
-                      alt={selectedDoctor.name} 
-                      className="h-20 w-20 rounded-full object-cover"
-                    />
-                  ) : (
-                    selectedDoctor.name.charAt(0)
-                  )}
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-xl font-bold text-slate-800 mb-2">{selectedDoctor.name}</h3>
-                  <p className="text-lg text-blue-600 font-semibold mb-1">{selectedDoctor.specialization || 'General Physician'}</p>
-                  {selectedDoctor.qualification && (
-                    <p className="text-slate-600 mb-2">{selectedDoctor.qualification}</p>
-                  )}
-                  <div className="flex items-center text-green-600">
-                    <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-                    <span className="text-sm font-medium">Available for consultation</span>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Doctor Information */}
-              <div className="grid md:grid-cols-2 gap-6 mb-6">
-                <div>
-                  <h4 className="font-semibold text-slate-800 mb-3">Professional Information</h4>
-                  <div className="space-y-3">
-                    {selectedDoctor.specialization && (
-                      <div className="flex items-center">
-                        <svg className="w-4 h-4 text-blue-600 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                          <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                        </svg>
-                        <div>
-                          <span className="text-slate-600 text-xs">Specialization</span>
-                          <p className="font-medium text-sm">{selectedDoctor.specialization}</p>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {selectedDoctor.qualification && (
-                      <div className="flex items-center">
-                        <svg className="w-4 h-4 text-blue-600 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                          <path d="M10.394 2.08a1 1 0 00-.788 0l-7 3a1 1 0 000 1.84L5.25 8.051a.999.999 0 01.356-.257l4-1.714a1 1 0 11.788 1.838L7.667 9.088l1.94.831a1 1 0 00.787 0l7-3a1 1 0 000-1.838l-7-3zM3.31 9.397L5 10.12v4.102a8.969 8.969 0 00-1.05-.174 1 1 0 01-.89-.89 11.115 11.115 0 01.25-3.762zM9.3 16.573A9.026 9.026 0 007 14.935v-3.957l1.818.78a3 3 0 002.364 0l5.508-2.361a11.026 11.026 0 01.25 3.762 1 1 0 01-.89.89 8.968 8.968 0 00-5.75 2.524z"/>
-                        </svg>
-                        <div>
-                          <span className="text-slate-600 text-xs">Qualification</span>
-                          <p className="font-medium text-sm">{selectedDoctor.qualification}</p>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="flex items-center">
-                      <svg className="w-4 h-4 text-blue-600 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/>
-                        <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/>
-                      </svg>
-                      <div>
-                        <span className="text-slate-600 text-xs">Email</span>
-                        <p className="font-medium text-sm">{selectedDoctor.email}</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <h4 className="font-semibold text-slate-800 mb-3">Availability</h4>
-                  <div className="space-y-3">
-                    {selectedDoctor.availability ? (
-                      <div className="flex items-center">
-                        <svg className="w-4 h-4 text-green-600 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd"/>
-                        </svg>
-                        <div>
-                          <span className="text-slate-600 text-xs">Available Hours</span>
-                          <p className="font-medium text-green-700 text-sm">{selectedDoctor.availability}</p>
-                        </div>
-                      </div>
-                    ) : (
-                      <p className="text-slate-600 text-sm">Contact for availability</p>
-                    )}
-
-                    <div className="p-3 bg-blue-50 rounded-lg">
-                      <h5 className="font-semibold text-blue-800 mb-2 text-sm">Consultation Options</h5>
-                      <div className="space-y-1">
-                        <div className="flex items-center text-blue-700 text-sm">
-                          <svg className="w-3 h-3 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"/>
-                          </svg>
-                          Video Consultation
-                        </div>
-                        <div className="flex items-center text-blue-700 text-sm">
-                          <svg className="w-3 h-3 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/>
-                            <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/>
-                          </svg>
-                          Chat Consultation
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Action Buttons */}
-              <div className="flex gap-3">
-                <button
-                  onClick={handleCloseModal}
-                  className="flex-1 btn-secondary py-3"
-                >
-                  Close
-                </button>
-                <button
-                  onClick={() => {
-                    handleCloseModal();
-                    handleBookAppointment(selectedDoctor);
-                  }}
-                  className="flex-1 btn-primary py-3"
-                >
-                  Book Appointment
-                </button>
-              </div>
-            </div>
+        <>
+          <p className="text-small text-muted mb-4" role="status">
+            {t('doctors.found', { count: doctors.length })}
+          </p>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {doctors.map(doctor => (
+              <DoctorCard
+                key={doctor._id}
+                doctor={doctor}
+                onView={openProfile}
+                onBook={openProfile}
+              />
+            ))}
           </div>
-        </div>
+        </>
       )}
     </div>
-  );
+  )
 }

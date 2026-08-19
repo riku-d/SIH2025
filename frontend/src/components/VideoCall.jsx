@@ -1,394 +1,250 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useRef, useState, useCallback } from 'react'
 import io from 'socket.io-client'
+import { useTranslation } from 'react-i18next'
 import api from '../services/api'
+import { useAuth } from '../context/AuthContext'
 import SimpleWebRTC from '../utils/SimpleWebRTC'
+import Card, { CardBody } from './ui/Card'
+import Button, { IconButton } from './ui/Button'
+import Avatar from './ui/Avatar'
+import Alert from './ui/Alert'
 
-const socket = io(import.meta.env.VITE_SIGNAL_URL || 'http://localhost:5000')
+/**
+ * The socket is created when a call actually starts rather than at module
+ * import time, so loading any page that touched this module no longer
+ * opened a connection.
+ */
+function createSocket() {
+  return io(import.meta.env.VITE_SIGNAL_URL || 'http://localhost:5000')
+}
 
-export default function VideoCall({ roomId }) {
+export default function VideoCall({ roomId, perspective = 'patient', onLeave }) {
+  const { t } = useTranslation()
+  const { userId } = useAuth()
   const myVideo = useRef(null)
-  const userVideo = useRef(null)
-  const [peer, setPeer] = useState(null)
-  const [stream, setStream] = useState(null)
-  const [isConnected, setIsConnected] = useState(false)
-  const [isWaiting, setIsWaiting] = useState(true)
+  const remoteVideo = useRef(null)
+  const socketRef = useRef(null)
+  const peerRef = useRef(null)
+  const streamRef = useRef(null)
+
+  const [connected, setConnected] = useState(false)
   const [error, setError] = useState('')
-  const [audioEnabled, setAudioEnabled] = useState(true)
-  const [videoEnabled, setVideoEnabled] = useState(true)
-  
-  // Check WebRTC support on component mount
+  const [audioOn, setAudioOn] = useState(true)
+  const [videoOn, setVideoOn] = useState(true)
+  const [counterpart, setCounterpart] = useState(null)
+
+  const counterpartLabel = counterpart?.name
+    || (perspective === 'patient' ? t('consultation.otherPerson') : t('consultation.otherPersonPatient'))
+
+  // Show who the patient is waiting for, instead of a raw Mongo id.
+  // There is no GET /appointments/:id, so this reads the caller's own
+  // list — an endpoint that already exists — and picks this appointment.
   useEffect(() => {
-    if (!SimpleWebRTC.WEBRTC_SUPPORT) {
-      setError('WebRTC not supported. Please use Chrome, Firefox, or Safari.')
-    }
+    if (!roomId || !userId) return
+    let cancelled = false
+    const listUrl = perspective === 'patient'
+      ? `/appointments/patient/${userId}`
+      : `/appointments/doctor/${userId}`
+
+    api.get(listUrl)
+      .then(({ data }) => {
+        if (cancelled) return
+        const appointment = (data || []).find(a => a._id === roomId)
+        setCounterpart(perspective === 'patient' ? appointment?.doctorId : appointment?.patientId)
+      })
+      .catch(() => { /* A name is a nicety; the call works without it. */ })
+    return () => { cancelled = true }
+  }, [roomId, perspective, userId])
+
+  const cleanup = useCallback(() => {
+    try { peerRef.current?.destroy?.() } catch { /* already gone */ }
+    peerRef.current = null
+    streamRef.current?.getTracks().forEach(track => track.stop())
+    streamRef.current = null
+    socketRef.current?.disconnect()
+    socketRef.current = null
   }, [])
 
-  // End call function
-  const handleEndCall = async () => {
+  const endCall = async () => {
     try {
-      // Only try to mark as completed if roomId is provided and call was actually connected
-      if (roomId && isConnected) {
-        console.log('Marking appointment as completed:', roomId)
-        await api.put(`/appointments/${roomId}/complete`)
-        console.log('Appointment marked as completed successfully')
-      }
-    } catch (error) {
-      console.error('Failed to mark appointment as completed:', error)
-      // We don't show this error to the user as it's not critical for ending the call
+      if (roomId && connected) await api.put(`/appointments/${roomId}/complete`)
+    } catch (err) {
+      console.error('Could not mark the appointment complete:', err)
     } finally {
       cleanup()
-    }
-  }
-
-  // Clean up function
-  const cleanup = () => {
-    console.log('Cleaning up video call...')
-    
-    // Remove socket event listeners
-    socket.off('user-joined')
-    socket.off('signal')
-    socket.off('disconnect')
-    
-    // Destroy peer connection
-    if (peer) {
-      try {
-        if (typeof peer.destroy === 'function' && !peer.destroyed) {
-          peer.destroy()
-        }
-      } catch (err) {
-        console.warn('Error destroying peer:', err)
-      }
-    }
-    
-    // Stop all media tracks
-    if (stream) {
-      stream.getTracks().forEach(track => {
-        try {
-          track.stop()
-        } catch (err) {
-          console.warn('Error stopping track:', err)
-        }
-      })
-    }
-    
-    // Reset state
-    setPeer(null)
-    setStream(null)
-    setIsConnected(false)
-    setIsWaiting(false)
-    setError('')
-  }
-
-  // Toggle audio
-  const toggleAudio = () => {
-    if (stream) {
-      const audioTracks = stream.getAudioTracks()
-      audioTracks.forEach(track => {
-        track.enabled = !track.enabled
-        setAudioEnabled(track.enabled)
-      })
-    }
-  }
-
-  // Toggle video
-  const toggleVideo = () => {
-    if (stream) {
-      const videoTracks = stream.getVideoTracks()
-      videoTracks.forEach(track => {
-        track.enabled = !track.enabled
-        setVideoEnabled(track.enabled)
-      })
-    }
-  }
-
-  // Create peer connection
-  const createPeer = (initiator, userStream, signalData = null) => {
-    // Check WebRTC support
-    if (!SimpleWebRTC.WEBRTC_SUPPORT) {
-      console.error('❌ WebRTC not supported in this environment')
-      setError('WebRTC not supported. Please use Chrome, Firefox, or Safari.')
-      return null
-    }
-
-    try {
-      console.log('🎯 Creating peer with initiator:', initiator)
-      console.log('🔧 WebRTC support:', SimpleWebRTC.WEBRTC_SUPPORT)
-      console.log('🔧 Stream tracks:', userStream ? userStream.getTracks().length : 'no stream')
-      
-      // Create the peer instance using our SimpleWebRTC implementation
-      const p = new SimpleWebRTC({
-        initiator: initiator,
-        stream: userStream
-      })
-      
-      console.log('✅ Peer created successfully!', typeof p)
-
-      // Handle signaling
-      p.on('signal', data => {
-        console.log('📡 Peer signaling:', data.type)
-        socket.emit('signal', { roomId, data })
-      })
-
-      // Handle remote stream
-      p.on('stream', remoteStream => {
-        console.log('Received remote stream')
-        if (userVideo.current) {
-          userVideo.current.srcObject = remoteStream
-        }
-        setIsConnected(true)
-        setIsWaiting(false)
-      })
-
-      // Handle connection
-      p.on('connect', () => {
-        console.log('Peer connected!')
-        setIsConnected(true)
-        setIsWaiting(false)
-      })
-
-      // Handle connection close
-      p.on('close', () => {
-        console.log('Peer connection closed')
-        setIsConnected(false)
-        setIsWaiting(false)
-      })
-
-      // Handle errors
-      p.on('error', (err) => {
-        console.error('Peer error:', err)
-        setError('Connection error occurred. Please try again.')
-        setIsConnected(false)
-        setIsWaiting(false)
-      })
-
-      // If we have signal data, send it immediately
-      if (signalData) {
-        console.log('📤 Sending initial signal data:', signalData.type)
-        p.signal(signalData)
-      }
-
-      return p
-    } catch (error) {
-      console.error('❌ Error creating peer:', error)
-      console.error('❌ Error name:', error.name)
-      console.error('❌ Error message:', error.message)
-      console.error('❌ Error stack:', error.stack)
-      
-      setError(`Failed to create peer connection: ${error.message}`)
-      return null
+      onLeave?.()
     }
   }
 
   useEffect(() => {
-    // Don't start if no roomId or WebRTC not supported
-    if (!roomId || !SimpleWebRTC.WEBRTC_SUPPORT) {
-      console.log('⏳ Waiting for roomId and WebRTC support...', { roomId: !!roomId, webrtcSupport: SimpleWebRTC.WEBRTC_SUPPORT })
+    if (!roomId) return
+    if (!SimpleWebRTC.WEBRTC_SUPPORT) {
+      setError(t('consultation.errors.unsupported'))
       return
+    }
+
+    let disposed = false
+    const socket = createSocket()
+    socketRef.current = socket
+
+    const makePeer = (initiator, stream, signalData) => {
+      const peer = new SimpleWebRTC({ initiator, stream })
+      peer.on('signal', (data) => socket.emit('signal', { roomId, data }))
+      peer.on('stream', (remote) => {
+        if (remoteVideo.current) remoteVideo.current.srcObject = remote
+        setConnected(true)
+      })
+      peer.on('connect', () => setConnected(true))
+      peer.on('close', () => setConnected(false))
+      peer.on('error', (err) => {
+        console.error('Peer error:', err)
+        setError(t('consultation.errors.connection'))
+        setConnected(false)
+      })
+      if (signalData) peer.signal(signalData)
+      return peer
     }
 
     const start = async () => {
       try {
-        console.log('Starting video call for room:', roomId)
-        
-        // Reset states
-        setError('')
-        setIsWaiting(true)
-        setIsConnected(false)
-        
-        // Request camera and microphone access
-        const userStream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-          audio: true
-        })
-        
-        setStream(userStream)
-        
-        // Set local video stream
-        if (myVideo.current) {
-          myVideo.current.srcObject = userStream
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+        if (disposed) {
+          stream.getTracks().forEach(track => track.stop())
+          return
         }
-        
-        // Join the room
+        streamRef.current = stream
+        if (myVideo.current) myVideo.current.srcObject = stream
+
         socket.emit('join-room', roomId)
-        
-        // Handle when another user joins (we become initiator)
-        socket.on('user-joined', (id) => {
-          console.log('User joined, creating initiator peer')
-          const newPeer = createPeer(true, userStream)
-          if (newPeer) {
-            setPeer(newPeer)
-          }
+
+        socket.on('user-joined', () => {
+          if (!peerRef.current) peerRef.current = makePeer(true, stream)
         })
-        
-        // Handle incoming signals
-        socket.on('signal', ({ from, data }) => {
-          console.log('Received signal:', { from, hasData: !!data, type: data?.type })
-          
-          setPeer(currentPeer => {
-            if (!currentPeer) {
-              // Create peer connection as receiver
-              console.log('Creating receiver peer')
-              const newPeer = createPeer(false, userStream, data)
-              return newPeer
-            } else {
-              // Signal existing peer
-              try {
-                if (!currentPeer.destroyed) {
-                  currentPeer.signal(data)
-                }
-              } catch (signalError) {
-                console.error('Error signaling existing peer:', signalError)
-              }
-              return currentPeer
-            }
-          })
+
+        socket.on('signal', ({ data }) => {
+          if (!peerRef.current) peerRef.current = makePeer(false, stream, data)
+          else { try { peerRef.current.signal(data) } catch (err) { console.error('Signal failed:', err) } }
         })
-        
-        // Handle socket disconnect
-        socket.on('disconnect', () => {
-          setIsConnected(false)
-          setError('Connection lost.')
-        })
-        
+
+        socket.on('call-ended', () => { setConnected(false); cleanup(); onLeave?.() })
+        socket.on('disconnect', () => setConnected(false))
       } catch (err) {
-        console.error('Error starting video call:', err)
-        if (err.name === 'NotAllowedError') {
-          setError('Camera and microphone access is required for video calls. Please allow access and try again.')
-        } else {
-          setError('Failed to start video call. Please check your camera and microphone settings.')
-        }
-        setIsWaiting(false)
+        console.error('Could not start the call:', err)
+        setError(err.name === 'NotAllowedError'
+          ? t('consultation.errors.permission')
+          : t('consultation.errors.generic'))
       }
     }
 
     start()
-    
-    // Clean up on unmount or roomId change
-    return cleanup
-  }, [roomId]) // Only depend on roomId
+    return () => { disposed = true; cleanup() }
+  }, [roomId, t, cleanup, onLeave])
 
-  if (!roomId) {
-    return (
-      <div className="card">
-        <div className="card-body">
-          <div className="text-center py-8">
-            <div className="text-gray-500">No room ID provided</div>
-          </div>
-        </div>
-      </div>
-    )
+  const toggleAudio = () => {
+    const tracks = streamRef.current?.getAudioTracks() || []
+    tracks.forEach(track => { track.enabled = !track.enabled })
+    setAudioOn(tracks[0]?.enabled ?? true)
   }
 
-  if (!SimpleWebRTC.WEBRTC_SUPPORT) {
+  const toggleVideo = () => {
+    const tracks = streamRef.current?.getVideoTracks() || []
+    tracks.forEach(track => { track.enabled = !track.enabled })
+    setVideoOn(tracks[0]?.enabled ?? true)
+  }
+
+  if (!roomId) {
+    return <Card><CardBody><Alert tone="warning">{t('consultation.errors.noRoom')}</Alert></CardBody></Card>
+  }
+
+  if (error) {
     return (
-      <div className="card">
-        <div className="card-body">
-          <div className="text-center py-8">
-            <div className="text-red-500">WebRTC not supported</div>
-            <div className="text-sm text-gray-500 mt-2">Please use Chrome, Firefox, or Safari for video calls</div>
+      <Card>
+        <CardBody className="flex flex-col gap-4">
+          <Alert tone="error">{error}</Alert>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Button onClick={() => window.location.reload()}>{t('common.retry')}</Button>
+            <Button variant="secondary" onClick={() => { cleanup(); onLeave?.() }}>{t('consultation.leave')}</Button>
           </div>
-        </div>
-      </div>
+        </CardBody>
+      </Card>
     )
   }
 
   return (
-    <div className="card">
-      <div className="card-body">
-        {error ? (
-          <div className="bg-red-50 p-4 rounded-lg text-red-600">
-            <div className="font-medium mb-1">Error</div>
-            <div>{error}</div>
-            <button 
-              onClick={() => {
-                setError('')
-                window.location.reload()
-              }}
-              className="mt-2 bg-red-500 hover:bg-red-600 text-white py-1 px-3 rounded text-sm"
-            >
-              Reload Page
-            </button>
-          </div>
-        ) : (
-          <>
-            {isWaiting && (
-              <div className="text-center py-8">
-                <div className="animate-pulse mb-2">
-                  {stream ? 'Waiting for the other user to join...' : 'Setting up video call...'}
-                </div>
-                <div className="text-sm text-gray-500 mb-4">
-                  Room ID: {roomId}
-                </div>
-                <div className="text-xs text-gray-400 mb-4">
-                  Open another browser window/tab and join the same consultation to test
-                </div>
-                <button 
-                  onClick={handleEndCall}
-                  className="mt-4 bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-lg transition-colors"
-                >
-                  Cancel
-                </button>
+    <Card>
+      <CardBody className="p-0 sm:p-0">
+        {/* Remote fills the frame; you are a thumbnail. Two equal 300px
+            boxes made the person you're talking to the same size as your
+            own preview on a phone. */}
+        <div className="relative bg-ink rounded-t-card overflow-hidden aspect-[4/3] sm:aspect-video">
+          <video
+            ref={remoteVideo} autoPlay playsInline
+            className={`w-full h-full object-cover ${connected ? '' : 'invisible'}`}
+          />
+
+          {!connected && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-6 text-center">
+              <Avatar name={counterpartLabel} size="xl" className="bg-white/15 text-white" />
+              <div>
+                <p className="text-white font-medium mb-1">
+                  {streamRef.current
+                    ? t('consultation.waiting', { name: counterpartLabel })
+                    : t('consultation.preparing')}
+                </p>
+                <p className="text-white/70 text-small max-w-xs">{t('consultation.waitingHelp')}</p>
               </div>
-            )}
-            
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <div className="relative">
-                  <video 
-                    ref={myVideo} 
-                    autoPlay 
-                    muted 
-                    playsInline
-                    className="w-full bg-black rounded"
-                    style={{ maxHeight: '300px' }}
-                  />
-                  <div className="absolute bottom-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
-                    You {!videoEnabled && '(Camera Off)'}
-                  </div>
-                </div>
-                <div className="relative">
-                  <video 
-                    ref={userVideo} 
-                    autoPlay 
-                    playsInline
-                    className="w-full bg-black rounded"
-                    style={{ maxHeight: '300px' }}
-                  />
-                  <div className="absolute bottom-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
-                    {isConnected ? 'Remote User' : 'Waiting...'}
-                  </div>
-                </div>
-              </div>
-              
-              {stream && (
-                <div className="flex justify-center space-x-4">
-                  <button 
-                    onClick={toggleAudio}
-                    className={`p-3 rounded-full ${audioEnabled ? 'bg-green-500' : 'bg-red-500'} text-white transition-colors`}
-                    title={audioEnabled ? 'Mute' : 'Unmute'}
-                  >
-                    {audioEnabled ? '🔊' : '🔇'}
-                  </button>
-                  <button 
-                    onClick={toggleVideo}
-                    className={`p-3 rounded-full ${videoEnabled ? 'bg-green-500' : 'bg-red-500'} text-white transition-colors`}
-                    title={videoEnabled ? 'Turn off camera' : 'Turn on camera'}
-                  >
-                    {videoEnabled ? '📹' : '📵'}
-                  </button>
-                  <button 
-                    onClick={handleEndCall}
-                    className="p-3 rounded-full bg-red-600 text-white transition-colors hover:bg-red-700"
-                    title="End call"
-                  >
-                    📞
-                  </button>
-                </div>
-              )}
             </div>
-          </>
-        )}
-      </div>
-    </div>
+          )}
+
+          <div className="absolute bottom-3 right-3 w-28 sm:w-40 aspect-video rounded-control overflow-hidden border-2 border-white/25 bg-ink shadow-raised">
+            <video ref={myVideo} autoPlay muted playsInline className="w-full h-full object-cover" />
+            {!videoOn && (
+              <span className="absolute inset-0 flex items-center justify-center text-white/80 text-caption text-center px-1">
+                {t('consultation.cameraOff')}
+              </span>
+            )}
+          </div>
+
+          {connected && (
+            <span className="absolute top-3 left-3 badge bg-black/55 text-white border-white/20">
+              {counterpartLabel}
+            </span>
+          )}
+        </div>
+
+        {/* Labelled controls with real touch targets, replacing 🔊 📹 📞. */}
+        <div className="flex items-center justify-center gap-3 p-4">
+          <IconButton
+            label={audioOn ? t('consultation.muteOn') : t('consultation.muteOff')}
+            variant={audioOn ? 'secondary' : 'danger'}
+            onClick={toggleAudio}
+            aria-pressed={!audioOn}
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+              {audioOn
+                ? <path strokeLinecap="round" strokeLinejoin="round" d="M12 15a3 3 0 003-3V6a3 3 0 00-6 0v6a3 3 0 003 3zM19 11a7 7 0 01-14 0M12 18v3" />
+                : <path strokeLinecap="round" strokeLinejoin="round" d="M3 3l18 18M9 9v3a3 3 0 004.5 2.6M15 9.3V6a3 3 0 00-5.9-.7M19 11a7 7 0 01-1.2 3.9M5 11a7 7 0 0010.3 6.2M12 18v3" />}
+            </svg>
+          </IconButton>
+
+          <IconButton
+            label={videoOn ? t('consultation.videoOn') : t('consultation.videoOff')}
+            variant={videoOn ? 'secondary' : 'danger'}
+            onClick={toggleVideo}
+            aria-pressed={!videoOn}
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+              {videoOn
+                ? <path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.5-2.25v8.5L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                : <path strokeLinecap="round" strokeLinejoin="round" d="M3 3l18 18M15 10l4.5-2.25v8.5L15 14M10 6h3a2 2 0 012 2v3M5 18h8a2 2 0 002-2M3 8a2 2 0 012-2" />}
+            </svg>
+          </IconButton>
+
+          <Button variant="danger" onClick={endCall} className="px-5">
+            {t('consultation.endCall')}
+          </Button>
+        </div>
+      </CardBody>
+    </Card>
   )
 }

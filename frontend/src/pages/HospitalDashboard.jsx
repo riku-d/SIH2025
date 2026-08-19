@@ -1,399 +1,274 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import api from '../services/api';
+import React, { useState, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
+import api, { friendlyError } from '../services/api'
+import { useToast } from '../components/ui/Toast'
+import PageLayout from '../components/PageLayout'
+import Card, { CardBody, CardHeader } from '../components/ui/Card'
+import Button from '../components/ui/Button'
+import Avatar from '../components/ui/Avatar'
+import Modal from '../components/ui/Modal'
+import ConfirmDialog from '../components/ui/ConfirmDialog'
+import { Field, Input, Select } from '../components/ui/Field'
+import { SkeletonList } from '../components/ui/Skeleton'
+import { EmptyState, ErrorState } from '../components/ui/States'
 
-const HospitalDashboard = () => {
-  const navigate = useNavigate();
-  const [hospitalData, setHospitalData] = useState(null);
-  const [doctors, setDoctors] = useState([]);
-  const [pharmacies, setPharmacies] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  
-  // Popup states
-  const [showAddDoctorPopup, setShowAddDoctorPopup] = useState(false);
-  const [showAddPharmacyPopup, setShowAddPharmacyPopup] = useState(false);
-  
-  // Form states
-  const [doctorEmail, setDoctorEmail] = useState('');
-  const [pharmacyId, setPharmacyId] = useState('');
-  const [availablePharmacies, setAvailablePharmacies] = useState([]);
+/**
+ * Now uses the shared page shell — it previously rendered its own H1 and
+ * its own Logout button directly under the navbar's, and leaned on
+ * `btn-danger` and `btn-sm`, neither of which existed, so every remove
+ * button rendered as unstyled text.
+ */
+export default function HospitalDashboard() {
+  const { t } = useTranslation()
+  const toast = useToast()
 
-  useEffect(() => {
-    const fetchHospitalData = async () => {
-      try {
-        setLoading(true);
-        // Fetch hospital profile
-        const profileResponse = await api.get('/hospital/my/profile');
-        setHospitalData(profileResponse.data);
-        setDoctors(profileResponse.data.doctors || []);
-        setPharmacies(profileResponse.data.pharmacies || []);
-        
-        // Fetch available pharmacies that aren't already associated
-        const allPharmaciesResponse = await api.get('/pharmacy/all');
-        const available = allPharmaciesResponse.data.filter(
-          pharmacy => !profileResponse.data.pharmacies.some(p => p._id === pharmacy._id)
-        );
-        setAvailablePharmacies(available);
-        
-        setError('');
-      } catch (err) {
-        setError('Failed to fetch hospital data. Please try again.');
-        console.error('Error fetching hospital data:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const [hospital, setHospital] = useState(null)
+  const [doctors, setDoctors] = useState([])
+  const [pharmacies, setPharmacies] = useState([])
+  const [availablePharmacies, setAvailablePharmacies] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
 
-    fetchHospitalData();
-  }, []);
+  const [doctorOpen, setDoctorOpen] = useState(false)
+  const [pharmacyOpen, setPharmacyOpen] = useState(false)
+  const [doctorEmail, setDoctorEmail] = useState('')
+  const [pharmacyId, setPharmacyId] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [removeTarget, setRemoveTarget] = useState(null)
 
-  const handleAddDoctor = async (e) => {
-    e.preventDefault();
+  const load = useCallback(async () => {
+    setLoadError(false)
     try {
-      // Find doctor by email
-      const doctorsResponse = await api.get('/users/doctors');
-      const doctor = doctorsResponse.data.find(d => d.email === doctorEmail);
-      
+      const { data } = await api.get('/hospital/my/profile')
+      setHospital(data)
+      setDoctors(data.doctors || [])
+      setPharmacies(data.pharmacies || [])
+
+      const all = await api.get('/pharmacy/all')
+      setAvailablePharmacies(
+        (all.data || []).filter(p => !(data.pharmacies || []).some(existing => existing._id === p._id))
+      )
+    } catch (err) {
+      console.error('Failed to load hospital data:', err)
+      setLoadError(true)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { load() }, [load])
+
+  const addDoctor = async (e) => {
+    e.preventDefault()
+    setBusy(true)
+    try {
+      const { data } = await api.get('/users/doctors')
+      const doctor = (data || []).find(d => d.email?.toLowerCase() === doctorEmail.trim().toLowerCase())
       if (!doctor) {
-        setError('Doctor with this email not found.');
-        return;
+        toast.error(t('hospital.doctorNotFound'))
+        return
       }
-      
-      // Add doctor to hospital
-      await api.post('/hospital/doctors/add', { doctorId: doctor._id });
-      
-      // Refresh data
-      const profileResponse = await api.get('/hospital/my/profile');
-      setDoctors(profileResponse.data.doctors || []);
-      
-      // Reset form and close popup
-      setDoctorEmail('');
-      setShowAddDoctorPopup(false);
-      setError('');
+      await api.post('/hospital/doctors/add', { doctorId: doctor._id })
+      toast.success(t('hospital.doctorAdded'))
+      setDoctorEmail('')
+      setDoctorOpen(false)
+      load()
     } catch (err) {
-      setError('Failed to add doctor. ' + (err.response?.data?.message || ''));
-      console.error('Error adding doctor:', err);
+      console.error('Add doctor failed:', err)
+      toast.error(friendlyError(err))
+    } finally {
+      setBusy(false)
     }
-  };
-
-  const handleRemoveDoctor = async (doctorId) => {
-    if (window.confirm('Are you sure you want to remove this doctor from the hospital?')) {
-      try {
-        await api.delete('/hospital/doctors/remove', { data: { doctorId } });
-        
-        // Refresh data
-        const profileResponse = await api.get('/hospital/my/profile');
-        setDoctors(profileResponse.data.doctors || []);
-      } catch (err) {
-        setError('Failed to remove doctor. ' + (err.response?.data?.message || ''));
-        console.error('Error removing doctor:', err);
-      }
-    }
-  };
-
-  const handleAddPharmacy = async (e) => {
-    e.preventDefault();
-    try {
-      // Add pharmacy to hospital
-      await api.post('/hospital/pharmacies/add', { pharmacyId });
-      
-      // Refresh data
-      const profileResponse = await api.get('/hospital/my/profile');
-      setPharmacies(profileResponse.data.pharmacies || []);
-      
-      // Update available pharmacies
-      const allPharmaciesResponse = await api.get('/pharmacy/all');
-      const available = allPharmaciesResponse.data.filter(
-        pharmacy => !profileResponse.data.pharmacies.some(p => p._id === pharmacy._id)
-      );
-      setAvailablePharmacies(available);
-      
-      // Reset form and close popup
-      setPharmacyId('');
-      setShowAddPharmacyPopup(false);
-      setError('');
-    } catch (err) {
-      setError('Failed to add pharmacy. ' + (err.response?.data?.message || ''));
-      console.error('Error adding pharmacy:', err);
-    }
-  };
-
-  const handleRemovePharmacy = async (pharmacyId) => {
-    if (window.confirm('Are you sure you want to remove this pharmacy association?')) {
-      try {
-        await api.delete('/hospital/pharmacies/remove', { data: { pharmacyId } });
-        
-        // Refresh data
-        const profileResponse = await api.get('/hospital/my/profile');
-        setPharmacies(profileResponse.data.pharmacies || []);
-        
-        // Update available pharmacies
-        const allPharmaciesResponse = await api.get('/pharmacy/all');
-        const available = allPharmaciesResponse.data.filter(
-          pharmacy => !profileResponse.data.pharmacies.some(p => p._id === pharmacy._id)
-        );
-        setAvailablePharmacies(available);
-      } catch (err) {
-        setError('Failed to remove pharmacy. ' + (err.response?.data?.message || ''));
-        console.error('Error removing pharmacy:', err);
-      }
-    }
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    navigate('/login');
-  };
-
-  if (loading) {
-    return (
-      <div className="container-app py-10">
-        <div className="max-w-4xl mx-auto">
-          <div className="card">
-            <div className="card-body">
-              <h2 className="text-xl font-bold mb-4">Loading Hospital Dashboard...</h2>
-              <div className="flex justify-center">
-                <div className="loader"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
   }
 
-  if (error && !hospitalData) {
+  const addPharmacy = async (e) => {
+    e.preventDefault()
+    setBusy(true)
+    try {
+      await api.post('/hospital/pharmacies/add', { pharmacyId })
+      toast.success(t('hospital.pharmacyAdded'))
+      setPharmacyId('')
+      setPharmacyOpen(false)
+      load()
+    } catch (err) {
+      console.error('Add pharmacy failed:', err)
+      toast.error(friendlyError(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const remove = async () => {
+    setBusy(true)
+    try {
+      if (removeTarget.kind === 'doctor') {
+        await api.delete('/hospital/doctors/remove', { data: { doctorId: removeTarget.id } })
+        toast.success(t('hospital.doctorRemoved'))
+      } else {
+        await api.delete('/hospital/pharmacies/remove', { data: { pharmacyId: removeTarget.id } })
+        toast.success(t('hospital.pharmacyRemoved'))
+      }
+      setRemoveTarget(null)
+      load()
+    } catch (err) {
+      console.error('Remove failed:', err)
+      toast.error(friendlyError(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (loading) {
+    return <PageLayout title={t('hospital.title')}><SkeletonList count={2} /></PageLayout>
+  }
+
+  if (loadError) {
     return (
-      <div className="container-app py-10">
-        <div className="max-w-4xl mx-auto">
-          <div className="card">
-            <div className="card-body">
-              <h2 className="text-xl font-bold mb-4">Hospital Dashboard</h2>
-              <div className="text-red-600 mb-4">{error}</div>
-              <button className="btn btn-primary" onClick={() => window.location.reload()}>Retry</button>
-              <button className="btn btn-secondary ml-2" onClick={handleLogout}>Logout</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+      <PageLayout title={t('hospital.title')}>
+        <Card><CardBody>
+          <ErrorState title={t('hospital.loadError')} onRetry={load} retryLabel={t('common.retry')} />
+        </CardBody></Card>
+      </PageLayout>
+    )
   }
 
   return (
-    <div className="container-app py-10">
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold">Hospital Dashboard</h1>
-          <button className="btn btn-secondary" onClick={handleLogout}>Logout</button>
-        </div>
-
-        {/* Error Message */}
-        {error && (
-          <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4" role="alert">
-            {error}
-          </div>
-        )}
-
-        {/* Hospital Profile Card */}
-        <div className="card mb-6">
-          <div className="card-body">
-            <h2 className="text-xl font-bold mb-4">Hospital Profile</h2>
-            {hospitalData && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <p><strong>Name:</strong> {hospitalData.name}</p>
-                  <p><strong>Email:</strong> {hospitalData.email}</p>
-                  <p><strong>Phone:</strong> {hospitalData.phone}</p>
-                  <p><strong>Address:</strong> {hospitalData.address}</p>
+    <PageLayout title={hospital?.name || t('hospital.title')} description={hospital?.address}>
+      <div className="flex flex-col gap-5">
+        <Card>
+          <CardHeader><h2 className="card-title">{t('hospital.profile')}</h2></CardHeader>
+          <CardBody>
+            <dl className="grid gap-4 sm:grid-cols-2">
+              {[
+                [t('common.name'), hospital?.name],
+                [t('common.email'), hospital?.email],
+                [t('common.phone'), hospital?.phone],
+                [t('hospital.address'), hospital?.address]
+              ].map(([label, value]) => value ? (
+                <div key={label}>
+                  <dt className="text-caption font-semibold text-muted uppercase tracking-wide mb-0.5">{label}</dt>
+                  <dd className="text-body break-words">{value}</dd>
                 </div>
-                {hospitalData.location && (
-                  <div>
-                    <p><strong>Location Coordinates:</strong> {hospitalData.location.coordinates.join(', ')}</p>
-                    {hospitalData.contactPerson && (
-                      <p><strong>Contact Person:</strong> {hospitalData.contactPerson}</p>
-                    )}
-                    {hospitalData.website && (
-                      <p><strong>Website:</strong> <a href={hospitalData.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{hospitalData.website}</a></p>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
+              ) : null)}
+            </dl>
+          </CardBody>
+        </Card>
 
-        {/* Doctors Section */}
-        <div className="card mb-6">
-          <div className="card-body">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold">Doctors at {hospitalData?.name}</h2>
-              <button className="btn btn-primary" onClick={() => setShowAddDoctorPopup(true)}>
-                Add Doctor
-              </button>
-            </div>
-            
-            {doctors.length === 0 ? (
-              <p className="text-gray-600">No doctors added yet. Click "Add Doctor" to get started.</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full">
-                  <thead>
-                    <tr className="bg-gray-100">
-                      <th className="py-2 px-4 text-left">Name</th>
-                      <th className="py-2 px-4 text-left">Email</th>
-                      <th className="py-2 px-4 text-left">Specialization</th>
-                      <th className="py-2 px-4 text-left">Qualification</th>
-                      <th className="py-2 px-4 text-left">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {doctors.map((doctor) => (
-                      <tr key={doctor._id} className="border-t">
-                        <td className="py-2 px-4">{doctor.name}</td>
-                        <td className="py-2 px-4">{doctor.email}</td>
-                        <td className="py-2 px-4">{doctor.specialization}</td>
-                        <td className="py-2 px-4">{doctor.qualification}</td>
-                        <td className="py-2 px-4">
-                          <button 
-                            className="btn btn-danger btn-sm"
-                            onClick={() => handleRemoveDoctor(doctor._id)}
-                          >
-                            Remove
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        </div>
+        <AssociationList
+          title={t('hospital.doctors')}
+          addLabel={t('hospital.addDoctor')}
+          onAdd={() => setDoctorOpen(true)}
+          items={doctors}
+          emptyTitle={t('hospital.noDoctors')}
+          emptyMessage={t('hospital.noDoctorsHelp')}
+          renderMeta={(d) => [d.specialization, d.email].filter(Boolean).join(' · ')}
+          onRemove={(d) => setRemoveTarget({ kind: 'doctor', id: d._id, name: d.name })}
+          removeLabel={t('common.remove')}
+        />
 
-        {/* Pharmacies Section */}
-        <div className="card">
-          <div className="card-body">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold">Associated Pharmacies</h2>
-              <button className="btn btn-primary" onClick={() => setShowAddPharmacyPopup(true)}>
-                Add Pharmacy
-              </button>
-            </div>
-            
-            {pharmacies.length === 0 ? (
-              <p className="text-gray-600">No pharmacies associated yet. Click "Add Pharmacy" to get started.</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full">
-                  <thead>
-                    <tr className="bg-gray-100">
-                      <th className="py-2 px-4 text-left">Name</th>
-                      <th className="py-2 px-4 text-left">Location</th>
-                      <th className="py-2 px-4 text-left">Contact</th>
-                      <th className="py-2 px-4 text-left">Email</th>
-                      <th className="py-2 px-4 text-left">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {pharmacies.map((pharmacy) => (
-                      <tr key={pharmacy._id} className="border-t">
-                        <td className="py-2 px-4">{pharmacy.name}</td>
-                        <td className="py-2 px-4">{pharmacy.address}</td>
-                        <td className="py-2 px-4">{pharmacy.contact}</td>
-                        <td className="py-2 px-4">{pharmacy.email}</td>
-                        <td className="py-2 px-4">
-                          <button 
-                            className="btn btn-danger btn-sm"
-                            onClick={() => handleRemovePharmacy(pharmacy._id)}
-                          >
-                            Remove
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Add Doctor Popup */}
-        {showAddDoctorPopup && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 max-w-md w-full">
-              <h3 className="text-xl font-bold mb-4">Add Doctor</h3>
-              <form onSubmit={handleAddDoctor}>
-                <div className="mb-4">
-                  <label className="block text-gray-700 mb-2">Doctor's Email</label>
-                  <input
-                    type="email"
-                    className="input w-full"
-                    placeholder="Enter doctor's registered email"
-                    value={doctorEmail}
-                    onChange={(e) => setDoctorEmail(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="flex justify-end gap-2">
-                  <button type="button" className="btn btn-secondary" onClick={() => {
-                    setShowAddDoctorPopup(false);
-                    setDoctorEmail('');
-                  }}>
-                    Cancel
-                  </button>
-                  <button type="submit" className="btn btn-primary">
-                    Add Doctor
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
-
-        {/* Add Pharmacy Popup */}
-        {showAddPharmacyPopup && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 max-w-md w-full">
-              <h3 className="text-xl font-bold mb-4">Add Pharmacy</h3>
-              <form onSubmit={handleAddPharmacy}>
-                <div className="mb-4">
-                  <label className="block text-gray-700 mb-2">Select Pharmacy</label>
-                  <select
-                    className="input w-full"
-                    value={pharmacyId}
-                    onChange={(e) => setPharmacyId(e.target.value)}
-                    required
-                  >
-                    <option value="">Choose a pharmacy</option>
-                    {availablePharmacies.map((pharmacy) => (
-                      <option key={pharmacy._id} value={pharmacy._id}>
-                        {pharmacy.name} - {pharmacy.location}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="flex justify-end gap-2">
-                  <button type="button" className="btn btn-secondary" onClick={() => {
-                    setShowAddPharmacyPopup(false);
-                    setPharmacyId('');
-                  }}>
-                    Cancel
-                  </button>
-                  <button type="submit" className="btn btn-primary">
-                    Add Pharmacy
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
+        <AssociationList
+          title={t('hospital.pharmacies')}
+          addLabel={t('hospital.addPharmacy')}
+          onAdd={() => setPharmacyOpen(true)}
+          items={pharmacies}
+          emptyTitle={t('hospital.noPharmacies')}
+          emptyMessage={t('hospital.noPharmaciesHelp')}
+          renderMeta={(p) => [p.location, p.contact].filter(Boolean).join(' · ')}
+          onRemove={(p) => setRemoveTarget({ kind: 'pharmacy', id: p._id, name: p.name })}
+          removeLabel={t('common.remove')}
+        />
       </div>
-    </div>
-  );
-};
 
-export default HospitalDashboard;
+      <Modal
+        open={doctorOpen} onClose={() => setDoctorOpen(false)}
+        title={t('hospital.addDoctor')} description={t('hospital.addDoctorHelp')} size="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setDoctorOpen(false)}>{t('common.cancel')}</Button>
+            <Button form="add-doctor" type="submit" loading={busy}>{t('common.add')}</Button>
+          </>
+        }
+      >
+        <form id="add-doctor" onSubmit={addDoctor}>
+          <Field label={t('common.email')} required>
+            {(props) => (
+              <Input {...props} type="email" required autoComplete="off"
+                placeholder={t('auth.emailPlaceholder')}
+                value={doctorEmail} onChange={(e) => setDoctorEmail(e.target.value)} />
+            )}
+          </Field>
+        </form>
+      </Modal>
+
+      <Modal
+        open={pharmacyOpen} onClose={() => setPharmacyOpen(false)}
+        title={t('hospital.addPharmacy')} size="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setPharmacyOpen(false)}>{t('common.cancel')}</Button>
+            <Button form="add-pharmacy" type="submit" loading={busy} disabled={!pharmacyId}>{t('common.add')}</Button>
+          </>
+        }
+      >
+        <form id="add-pharmacy" onSubmit={addPharmacy}>
+          <Field label={t('hospital.pharmacies')} required>
+            {(props) => (
+              <Select {...props} required value={pharmacyId} onChange={(e) => setPharmacyId(e.target.value)}>
+                <option value="">{t('hospital.choosePharmacy')}</option>
+                {availablePharmacies.map(p => (
+                  <option key={p._id} value={p._id}>{p.name} — {p.location}</option>
+                ))}
+              </Select>
+            )}
+          </Field>
+        </form>
+      </Modal>
+
+      <ConfirmDialog
+        open={Boolean(removeTarget)}
+        onClose={() => setRemoveTarget(null)}
+        onConfirm={remove}
+        loading={busy}
+        title={t('hospital.removeTitle')}
+        message={t('hospital.removeMessage', { name: removeTarget?.name || '' })}
+        confirmLabel={t('common.remove')}
+        cancelLabel={t('common.cancel')}
+      />
+    </PageLayout>
+  )
+}
+
+/** Cards on mobile, a list on desktop — the old raw tables forced the
+ *  whole page to scroll sideways on a phone. */
+function AssociationList({ title, addLabel, onAdd, items, emptyTitle, emptyMessage, renderMeta, onRemove, removeLabel }) {
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="card-title">{title}</h2>
+          <Button size="sm" onClick={onAdd}>{addLabel}</Button>
+        </div>
+      </CardHeader>
+      <CardBody className={items.length ? 'p-0 sm:p-0' : ''}>
+        {items.length === 0 ? (
+          <EmptyState title={emptyTitle} message={emptyMessage} className="py-8" />
+        ) : (
+          <ul className="divide-y divide-line-soft">
+            {items.map(item => (
+              <li key={item._id} className="flex items-center gap-3 px-5 py-4">
+                <Avatar name={item.name} size="sm" />
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-ink truncate">{item.name}</p>
+                  <p className="text-caption text-muted truncate">{renderMeta(item)}</p>
+                </div>
+                <Button variant="ghost" size="sm" className="text-danger-500 shrink-0" onClick={() => onRemove(item)}>
+                  {removeLabel}
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardBody>
+    </Card>
+  )
+}

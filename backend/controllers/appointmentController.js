@@ -192,3 +192,38 @@ export const completeAppointment = async (req, res) => {
 };
 
 
+
+// Lets a patient withdraw a request the doctor hasn't acted on yet.
+// The `cancelled` status already existed in the schema but had no route,
+// so the UI's Cancel button 404'd and stale requests piled up in every
+// doctor's queue.
+export const cancelAppointment = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const appointment = await Appointment.findById(id);
+        if (!appointment) {
+            return res.status(404).json({ message: 'Appointment not found' });
+        }
+
+        // Only the patient who booked it may cancel it.
+        if (String(appointment.patientId) !== String(req.user.id)) {
+            return res.status(403).json({ message: 'You can only cancel your own appointments' });
+        }
+
+        if (!['pending', 'confirmed'].includes(appointment.status)) {
+            return res.status(400).json({ message: `An appointment that is already ${appointment.status} cannot be cancelled` });
+        }
+
+        appointment.status = 'cancelled';
+        await appointment.save();
+
+        const populated = await Appointment.findById(id)
+            .populate('doctorId', 'name specialization qualification')
+            .populate('patientId', 'name age village email');
+
+        res.json({ message: 'Appointment cancelled', appointment: populated });
+    } catch (e) {
+        res.status(500).json({ message: e.message });
+    }
+};

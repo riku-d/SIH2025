@@ -2,188 +2,556 @@
   "navbar": {
     "home": "Home",
     "doctors": "Doctors",
-    "features": "Features",
-    "about": "About",
-    "contact": "Contact",
-    "loginSignup": "Login / Sign Up",
+    "pharmacy": "Pharmacy",
+    "patients": "Patients",
     "dashboard": "Dashboard",
-    "logout": "Logout"
+    "profile": "Profile",
+    "account": "Account",
+    "language": "Language",
+    "logout": "Log out",
+    "loginSignup": "Sign in",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu"
   },
-  "hero": {
-    "title": "GramSathi",
-    "subtitle": "Virtual. Visible. Valuable",
-    "cta": "Get Started"
-  },
-  "features": {
-    "teleconsultation": {
-      "title": "Teleconsultation",
-      "description": "Video calls optimized for low bandwidth with simple room joining. Connect with doctors from anywhere, even with limited internet."
-    },
-    "healthRecords": {
-      "title": "Health Records",
-      "description": "Store your medical history securely and access it anytime. Download PDF reports for offline access or to share with other healthcare providers."
-    },
-    "medicineTracker": {
-      "title": "Medicine Tracker",
-      "description": "Check real-time availability of medicines at local pharmacies. Get notified when essential medications are back in stock."
-    }
-  },
-  "mission": {
-    "title": "Connecting Rural Communities to Quality Healthcare",
-    "description": "Our platform provides low-bandwidth teleconsultations, digital health records, and real-time medicine availability tracking designed specifically for rural communities with limited connectivity."
-  },
-  "services": {
-    "title": "Our Services",
-    "description": "Comprehensive healthcare solutions tailored for rural communities"
-  },
-  "impact": {
-    "title": "Our Impact",
-    "description": "Making healthcare accessible across rural communities",
-    "villages": "Villages Covered",
-    "consultations": "Consultations",
-    "doctors": "Doctors",
-    "pharmacies": "Pharmacies"
-  },
-  "testimonials": {
-    "title": "What People Say",
-    "subtitle": "Real stories from our community"
-  },
-  "cta": {
-    "title": "Ready to Get Started?",
-    "description": "Join thousands of users who are already benefiting from our telemedicine platform. Start your healthcare journey today.",
-    "button": "Sign Up Now - It's Free"
-  },
-  "footer": {
-    "aboutTitle": "About Us",
-    "featuresTitle": "Features",
-    "quickLinksTitle": "Quick Links",
-    "contactTitle": "Contact",
-    "copyright": "© {{year}} Rural Telemedicine. All rights reserved. Built with ❤️ for rural communities.",
-    "infoEmail": "info@ruralmed.org",
-    "phoneNumber": "+91 98765 43210"
-  },
-  "login": {
-    "title": "Login",
-    "email": "Email",
-    "password": "Password",
-    "forgotPassword": "Forgot Password?",
-    "signIn": "Sign In",
-    "noAccount": "Don't have an account?",
-    "register": "Register"
-  },
-  "signup": {
-    "title": "Sign Up",
-    "name": "Name",
-    "email": "Email",
-    "password": "Password",
-    "confirmPassword": "Confirm Password",
-    "role": "Role",
+  "roles": {
     "patient": "Patient",
     "doctor": "Doctor",
     "pharmacy": "Pharmacy",
-    "alreadyHaveAccount": "Already have an account?",
-    "signIn": "Sign In",
-    "register": "Register"
+    "hospital": "Hospital"
   },
-  "patientDashboard": {
-    "title": "Patient Dashboard",
-    "quickActions": "Quick Actions",
-    "findDoctors": "Find Doctors",
-    "myAppointments": "My Appointments",
-    "viewHealthRecords": "View Health Records",
-    "editProfile": "Edit Profile",
-    "symptomChecker": "AI Symptom Checker",
-    "describeSymptoms": "Describe your symptoms...",
-    "check": "Check",
-    "checking": "Checking...",
-    "healthRecords": "Health Records",
-    "appointments": "Appointments",
-    "profile": "Profile"
+  "common": {
+    "save": "Save",
+    "saveChanges": "Save changes",
+    "cancel": "Cancel",
+    "edit": "Edit",
+    "delete": "Delete",
+    "remove": "Remove",
+    "back": "Back",
+    "retry": "Try again",
+    "loading": "Loading…",
+    "search": "Search",
+    "filter": "Filter",
+    "clear": "Clear",
+    "close": "Close",
+    "confirm": "Confirm",
+    "submit": "Submit",
+    "viewDetails": "View details",
+    "viewAll": "View all",
+    "optional": "Optional",
+    "required": "Required",
+    "add": "Add",
+    "update": "Update",
+    "none": "None",
+    "notSet": "Not set",
+    "date": "Date",
+    "time": "Time",
+    "status": "Status",
+    "actions": "Actions",
+    "name": "Name",
+    "email": "Email",
+    "phone": "Phone",
+    "today": "Today",
+    "upcoming": "Upcoming",
+    "past": "Past",
+    "all": "All"
   },
-  "doctorDashboard": {
-    "title": "Doctor Dashboard",
-    "appointments": "Appointments",
-    "profile": "Profile",
-    "patientTracker": "Patient Tracker",
-    "videoConsultation": "Video Consultation",
-    "backToAppointments": "Back to Appointments"
+  "hero": {
+    "title": "GramSathi",
+    "headline": "Talk to a doctor without leaving your village",
+    "subtitle": "Book a video consultation, keep your health records safe, check symptoms with AI help, and order medicine from a nearby pharmacy — in your own language.",
+    "cta": "Get started",
+    "ctaSecondary": "See how it works",
+    "dashboard": "Go to dashboard"
+  },
+  "trust": {
+    "lowBandwidth": {
+      "title": "Built for slow connections",
+      "description": "Video calls and pages are designed to work on 2G and patchy mobile data."
+    },
+    "languages": {
+      "title": "English, Hindi and Punjabi",
+      "description": "Every screen, including AI health guidance, speaks your language."
+    },
+    "free": {
+      "title": "Free to use",
+      "description": "No subscription. You only pay for the medicine you order."
+    },
+    "records": {
+      "title": "Your records, your phone",
+      "description": "Download your full health history as a PDF at any time."
+    }
+  },
+  "mission": {
+    "title": "Connecting rural communities to quality healthcare",
+    "description": "Distance, cost and language should not decide whether someone sees a doctor. GramSathi brings consultations, records and medicine to the phone already in your pocket."
+  },
+  "services": {
+    "title": "What you can do",
+    "description": "Four things, each built to work when the connection is poor"
+  },
+  "features": {
+    "teleconsultation": {
+      "title": "Video consultation",
+      "description": "Request an appointment, and a doctor confirms a time that suits them. Join the call from your phone — no app to install."
+    },
+    "healthRecords": {
+      "title": "Health records",
+      "description": "Every diagnosis and prescription your doctor writes is saved here. Download it as a PDF to show any other clinic."
+    },
+    "symptomChecker": {
+      "title": "AI symptom guidance",
+      "description": "Describe how you feel, or photograph a prescription or a report, and get plain-language guidance. Not a diagnosis."
+    },
+    "medicineTracker": {
+      "title": "Medicine from nearby",
+      "description": "See what local pharmacies have in stock, order for delivery or pickup, and track the order until it arrives."
+    }
+  },
+  "cta": {
+    "title": "Ready to get started?",
+    "description": "Create an account in under a minute. You only need a name, an email and a password.",
+    "button": "Create a free account"
+  },
+  "footer": {
+    "tagline": "Bringing quality healthcare to every corner of rural India.",
+    "quickLinksTitle": "Quick links",
+    "featuresTitle": "Features",
+    "contactTitle": "Contact",
+    "copyright": "© {{year}} GramSathi. Built for rural communities.",
+    "infoEmail": "info@gramsathi.org",
+    "phoneNumber": "+91 98765 43210",
+    "emergencyNote": "In an emergency, call 108 for an ambulance."
+  },
+  "auth": {
+    "signInTitle": "Welcome back",
+    "signInSubtitle": "Sign in to reach your doctor, records and orders.",
+    "signUpTitle": "Create your account",
+    "signUpSubtitle": "It takes less than a minute.",
+    "signInTab": "Sign in",
+    "signUpTab": "Create account",
+    "name": "Full name",
+    "namePlaceholder": "e.g. Ravi Kumar",
+    "email": "Email address",
+    "emailPlaceholder": "you@example.com",
+    "password": "Password",
+    "passwordHint": "At least 6 characters",
+    "confirmPassword": "Confirm password",
+    "showPassword": "Show password",
+    "role": "I am a",
+    "age": "Age",
+    "village": "Village or town",
+    "specialization": "Specialization",
+    "specializationPlaceholder": "e.g. General Medicine",
+    "qualification": "Qualification",
+    "qualificationPlaceholder": "e.g. MBBS",
+    "availability": "Available hours",
+    "availabilityPlaceholder": "e.g. Mon–Fri, 9am–1pm",
+    "signIn": "Sign in",
+    "signingIn": "Signing in…",
+    "createAccount": "Create account",
+    "creatingAccount": "Creating account…",
+    "noAccount": "New to GramSathi?",
+    "haveAccount": "Already have an account?",
+    "accountCreated": "Account created. Sign in below to continue.",
+    "sessionExpired": "Your session expired. Please sign in again.",
+    "errors": {
+      "nameRequired": "Please enter your name.",
+      "emailRequired": "Please enter your email address.",
+      "emailInvalid": "That doesn't look like an email address.",
+      "passwordRequired": "Please enter a password.",
+      "passwordShort": "Use at least 6 characters.",
+      "confirmMismatch": "The two passwords don't match.",
+      "ageInvalid": "Please enter an age between 1 and 120."
+    }
+  },
+  "status": {
+    "appointment": {
+      "pending": "Awaiting confirmation",
+      "confirmed": "Confirmed",
+      "rejected": "Declined",
+      "completed": "Completed",
+      "cancelled": "Cancelled",
+      "unknown": "Unknown"
+    },
+    "order": {
+      "pending": "Placed",
+      "confirmed": "Confirmed",
+      "preparing": "Being prepared",
+      "ready": "Ready",
+      "dispatched": "On the way",
+      "delivered": "Delivered",
+      "cancelled": "Cancelled"
+    }
+  },
+  "patient": {
+    "title": "Your health",
+    "welcome": "Welcome back, {{name}}",
+    "sections": {
+      "overview": "Overview",
+      "appointments": "Appointments",
+      "symptoms": "Symptom check",
+      "records": "Health records",
+      "orders": "Medicine orders",
+      "profile": "Profile"
+    },
+    "overview": {
+      "nextAppointment": "Next appointment",
+      "noAppointment": "No appointments booked",
+      "noAppointmentHelp": "Find a doctor and request a consultation — it takes a minute.",
+      "latestRecord": "Latest health record",
+      "noRecord": "No records yet",
+      "noRecordHelp": "Records appear here after a consultation.",
+      "activeOrder": "Medicine order",
+      "noOrder": "No active orders",
+      "noOrderHelp": "Order medicine from a pharmacy near you.",
+      "findDoctor": "Find a doctor",
+      "checkSymptoms": "Check symptoms",
+      "orderMedicine": "Order medicine",
+      "quickActions": "What would you like to do?"
+    }
+  },
+  "doctor": {
+    "title": "Your practice",
+    "sections": {
+      "today": "Today",
+      "requests": "Requests",
+      "appointments": "Appointments",
+      "patients": "Patients",
+      "profile": "Profile"
+    },
+    "today": {
+      "title": "Today's schedule",
+      "empty": "Nothing scheduled today",
+      "emptyHelp": "Confirmed appointments for today appear here, in time order.",
+      "pendingReview": "Awaiting your review",
+      "pendingReviewHelp_one": "{{count}} patient is waiting for you to confirm a time.",
+      "pendingReviewHelp_other": "{{count}} patients are waiting for you to confirm a time.",
+      "reviewNow": "Review requests"
+    },
+    "requests": {
+      "title": "Appointment requests",
+      "empty": "No requests waiting",
+      "emptyHelp": "New appointment requests from patients will appear here."
+    }
   },
   "appointments": {
-    "bookAppointment": "Book Appointment",
-    "date": "Date",
-    "symptoms": "Symptoms",
-    "consultationType": "Consultation Type",
-    "video": "Video",
-    "audio": "Audio",
-    "submit": "Submit",
-    "confirm": "Confirm",
-    "reject": "Reject",
-    "confirmDate": "Confirm Date",
-    "timeSlot": "Time Slot",
-    "doctorNotes": "Doctor Notes",
-    "rejectionReason": "Rejection Reason"
+    "title": "Appointments",
+    "book": "Book an appointment",
+    "bookWith": "Book with {{name}}",
+    "yourAppointments": "Your appointments",
+    "selectDoctor": "Choose a doctor",
+    "selectDoctorHint": "Search by name or specialization",
+    "noDoctorSelected": "Select a doctor to continue",
+    "preferredDate": "Preferred date",
+    "preferredDateHint": "The doctor will confirm the date and give you a time slot.",
+    "consultationType": "How would you like to consult?",
+    "video": "Video call",
+    "chat": "Chat",
+    "symptoms": "What's troubling you?",
+    "symptomsPlaceholder": "Describe your symptoms — when they started, how they feel, anything that helps.",
+    "attachments": "Photos, video or voice note",
+    "attachmentsHint": "Record or upload up to 5 files, 50MB each. This helps the doctor understand your condition before the call.",
+    "recordVideo": "Record video",
+    "recordAudio": "Record voice note",
+    "stopRecording": "Stop recording",
+    "recordingVideo": "Recording video…",
+    "recordingAudio": "Recording voice note…",
+    "chooseFiles": "Choose files",
+    "selectedFiles": "Attached files",
+    "removeFile": "Remove file",
+    "uploading": "Uploading… {{percent}}%",
+    "uploadingHint": "Keep this page open until the upload finishes.",
+    "submit": "Request appointment",
+    "submitting": "Sending request…",
+    "requestSent": "Request sent. The doctor will confirm a date and time.",
+    "empty": "No appointments yet",
+    "emptyHelp": "Once you request a consultation, it will appear here with its status.",
+    "requestedDate": "Requested for",
+    "confirmedDate": "Confirmed for",
+    "timeSlot": "Time",
+    "type": "Type",
+    "requestedOn": "Requested on",
+    "declineReason": "Why it was declined",
+    "doctorNotes": "Note from the doctor",
+    "joinConsultation": "Join consultation",
+    "startConsultation": "Start consultation",
+    "cancelRequest": "Cancel request",
+    "cancelTitle": "Cancel this request?",
+    "cancelMessage": "The doctor will no longer see this request. You can always book again.",
+    "cancelConfirm": "Yes, cancel it",
+    "cancelKeep": "Keep it",
+    "cancelled": "Appointment cancelled.",
+    "confirmTitle": "Confirm appointment with {{name}}",
+    "confirmDate": "Confirm the date",
+    "confirmSlot": "Assign a time slot",
+    "chooseSlot": "Choose a time slot",
+    "notesForPatient": "Note for the patient",
+    "notesPlaceholder": "Anything they should bring, prepare or know beforehand.",
+    "confirmAction": "Confirm appointment",
+    "confirmed": "Appointment confirmed.",
+    "declineTitle": "Decline this request?",
+    "declineMessage": "{{name}} will see your reason, so please be clear and kind.",
+    "declineReasonLabel": "Reason",
+    "declineReasonPlaceholder": "e.g. I'm not available that week — please try the following Monday.",
+    "declineAction": "Decline request",
+    "declined": "Request declined.",
+    "patientAttachments": "Files from the patient",
+    "playAttachment": "Play",
+    "downloadAttachment": "Download",
+    "loadingAttachment": "Loading…",
+    "attachmentError": "That file couldn't be loaded.",
+    "filters": {
+      "all": "All",
+      "pending": "Awaiting review",
+      "confirmed": "Confirmed",
+      "completed": "Completed"
+    },
+    "patientSymptoms": "Patient's symptoms"
   },
-  "profile": {
-    "title": "Edit Profile",
-    "save": "Save",
-    "cancel": "Cancel",
-    "edit": "Edit"
+  "records": {
+    "title": "Health records",
+    "subtitle": "Every diagnosis and prescription from your consultations.",
+    "empty": "No health records yet",
+    "emptyHelp": "After a consultation, your doctor's diagnosis and prescription appear here.",
+    "diagnosis": "Diagnosis",
+    "prescription": "Prescription",
+    "seenBy": "Seen by",
+    "unknownDoctor": "Doctor not recorded",
+    "downloadOne": "Download PDF",
+    "downloadAll": "Download all records",
+    "downloading": "Preparing PDF…",
+    "downloadError": "The PDF couldn't be prepared. Please try again.",
+    "loadError": "We couldn't load your health records.",
+    "addTitle": "Write a health record",
+    "addForPatient": "Record for {{name}}",
+    "forAppointment": "For appointment on",
+    "diagnosisPlaceholder": "What you found, in terms the patient can understand.",
+    "prescriptionPlaceholder": "Medicine, dosage and how long to take it.",
+    "saveRecord": "Save record",
+    "recordSaved": "Health record saved.",
+    "history": "Previous records",
+    "selectPatient": "Select a patient",
+    "selectPatientHelp": "Choose a patient to see their history and add a record.",
+    "noPatients": "No patients yet",
+    "noPatientsHelp": "Patients appear here once they book an appointment with you."
   },
-  "doctorDetails": {
-    "bookNow": "Book Now",
-    "specialization": "Specialization",
+  "doctors": {
+    "title": "Find a doctor",
+    "subtitle": "Connect with qualified doctors who consult online.",
+    "searchPlaceholder": "Search by name or specialization…",
+    "allSpecialties": "All specialties",
+    "specialty": "Specialty",
+    "found_one": "{{count}} doctor",
+    "found_other": "{{count}} doctors",
+    "empty": "No doctors match your search",
+    "emptyHelp": "Try a different name, or clear the specialty filter.",
+    "loadError": "We couldn't load the list of doctors.",
+    "generalPhysician": "General Physician",
     "qualification": "Qualification",
-    "availability": "Availability"
+    "availability": "Available",
+    "consultsOnline": "Consults online",
+    "bookAppointment": "Book appointment",
+    "viewProfile": "View profile",
+    "backToDoctors": "Back to doctors",
+    "aboutDoctor": "About",
+    "consultationOptions": "Consultation options",
+    "notFound": "We couldn't find that doctor."
   },
   "symptomChecker": {
-    "title": "AI Symptom Checker",
-    "description": "Get AI-powered medical assistance by describing your symptoms, uploading images, or attaching relevant documents.",
-    "helpType": "Select Assistance Type",
+    "title": "AI symptom guidance",
+    "description": "Describe how you're feeling, or upload a prescription, medicine photo or report. You'll get plain-language guidance in your language.",
+    "disclaimerTitle": "AI-generated guidance",
+    "disclaimer": "This is general information only. It is not a diagnosis and does not replace advice from a qualified doctor. If you feel worse, see a doctor.",
+    "urgentTitle": "Please get medical help now",
+    "urgent": "What you've described can be serious. Contact a doctor or call 108 for an ambulance rather than waiting.",
+    "helpType": "What do you need help with?",
     "helpTypes": {
-      "medicalAssistance": "Medical Assistance",
-      "prescriptionReader": "Prescription Reader",
-      "medicineDescriber": "Medicine Describer",
-      "reportAnalyzer": "Report Analyzer"
+      "medicalAssistance": "Describe my symptoms",
+      "prescriptionReader": "Read my prescription",
+      "medicineDescriber": "Explain a medicine",
+      "reportAnalyzer": "Explain my test report"
     },
-    "textInput": "Describe Your Symptoms / Question",
-    "textInputPlaceholder": "Be as detailed as possible...",
-    "imageInput": "Upload Image (Optional)",
-    "attachmentInput": "Upload Attachment (Optional - Image or PDF)",
-    "attachmentNote": "For PDF files, processing is limited. For better results, use images.",
-    "pdfWarning": "Note: PDF processing is limited. For better results, use images whenever possible.",
-    "emptyInput": "Please provide at least some text or upload an image/attachment.",
-    "apiKeyError": "API key is missing. Please configure it in the .env file.",
-    "apiUnauthorized": "Unauthorized: Please check your API key.",
-    "rateLimit": "Rate limit exceeded: Please try again later.",
-    "noResponse": "No valid response from AI service.",
-    "thinking": "Thinking...",
-    "analyzing": "Analyzing your input...",
-    "getAssistance": "Get Assistance",
-    "aiResponse": "AI Response",
-    "checkAnother": "Check Another",
-    "findDoctor": "Find a Doctor",
+    "textInput": "Tell us more",
+    "textInputPlaceholder": "For example: I've had a fever and a dry cough for three days, and I feel tired.",
+    "imageInput": "Add a photo",
+    "imageInputHint": "A photo of the prescription, medicine packet, report or affected area.",
+    "attachmentInput": "Add a document",
+    "attachmentNote": "Images work better than PDFs.",
+    "pdfWarning": "PDFs are read less reliably. A clear photo usually gives a better answer.",
+    "removeFile": "Remove",
+    "emptyInput": "Please describe your symptoms or add a photo first.",
+    "apiKeyError": "AI guidance isn't set up on this device yet.",
+    "apiUnauthorized": "AI guidance isn't available right now. Please try later or book a doctor.",
+    "rateLimit": "Too many requests just now. Wait a minute and try again.",
+    "noResponse": "We couldn't get an answer this time. Please try again, or talk to a doctor.",
+    "thinking": "Thinking…",
+    "analyzing": "Reading what you sent…",
+    "getAssistance": "Get guidance",
+    "aiResponse": "Guidance",
+    "checkAnother": "Ask about something else",
+    "findDoctor": "Talk to a doctor",
+    "responseLanguage": "Reply in {{language}}.",
     "prompts": {
-  "medicalAssistance": "You are a knowledgeable healthcare AI assistant. Carefully analyze the user's symptoms and provide a clear, structured explanation of possible conditions, common causes, and relevant advice. Always include a disclaimer that this information is for general purposes only and is not a substitute for professional medical evaluation. Encourage the user to consult a qualified doctor for accurate diagnosis and treatment.",
-  
-  "prescriptionReader": "You are a healthcare AI assistant. Examine the prescription provided by the user and explain each medication, its purpose, dosage, timing, and potential side effects. Include practical advice on how to follow the prescription safely. Always include a disclaimer that this is for informational purposes only and advise consulting a doctor or pharmacist for precise guidance.",
-  
-  "medicineDescriber": "You are a healthcare AI assistant. Describe the medication, its therapeutic uses, mechanism of action, common side effects, and important precautions. Provide easy-to-understand guidance but include a disclaimer that this is not a substitute for professional medical advice. Recommend consulting a doctor or pharmacist for personalized advice.",
-  
-  "reportAnalyzer": "You are a healthcare AI assistant. Carefully analyze the user's medical report, explain the key findings, and summarize them in simple, understandable terms. Include any relevant health implications without giving a formal diagnosis. Always include a disclaimer that this information is not a replacement for professional medical evaluation and advise the user to consult a doctor for a complete interpretation.",
-  
-  "default": "You are a healthcare AI assistant. Provide accurate and clear information based on the user's input. Include relevant explanations and guidance, but always add a disclaimer that this is not a substitute for professional medical advice and recommend consulting a qualified healthcare provider for personalized guidance."
-}
-
+      "medicalAssistance": "Act as a careful first-aid assistant for a rural patient with limited medical knowledge. Give practical first-aid guidance for the symptoms described. Do NOT give a formal diagnosis. Use short sentences and simple words. Begin with a clear statement that this is not a substitute for professional medical advice, and say plainly when the person should see a doctor urgently.",
+      "prescriptionReader": "Act as a careful pharmacy assistant. Read the prescription in the image or document and list each medicine, its dose, and when to take it, in simple words. If any part is unreadable, say so rather than guessing. Begin with a clear statement that this is not a substitute for advice from a doctor or pharmacist.",
+      "medicineDescriber": "Act as a careful pharmacy assistant. Identify the medicine shown or named, and explain in simple words what it is normally used for, common side effects, and important precautions. Do not recommend a dose for this specific person. Begin with a clear statement that this is not a substitute for advice from a doctor or pharmacist.",
+      "reportAnalyzer": "Act as a careful medical report explainer. Summarise the report in simple words: which values are in the normal range, which are not, and what those generally indicate. Do NOT give a diagnosis or specific treatment advice. Begin with a clear statement that this is not a substitute for a doctor's interpretation.",
+      "default": "Act as a careful health information assistant. Answer in simple, clear words. Do not give a diagnosis. Begin with a clear statement that this is not a substitute for professional medical advice."
+    }
   },
-  "languages": {
-    "english": "English",
-    "hindi": "Hindi",
-    "punjabi": "Punjabi"
+  "consultation": {
+    "title": "Video consultation",
+    "with": "Consultation with {{name}}",
+    "back": "Back to appointments",
+    "preparing": "Setting up your camera and microphone…",
+    "waiting": "Waiting for {{name}} to join…",
+    "waitingGeneric": "Waiting for the other person to join…",
+    "waitingHelp": "Keep this page open. The call starts automatically once they join.",
+    "connected": "Connected",
+    "you": "You",
+    "otherPerson": "Doctor",
+    "otherPersonPatient": "Patient",
+    "cameraOff": "Camera off",
+    "muteOn": "Mute microphone",
+    "muteOff": "Unmute microphone",
+    "videoOn": "Turn camera off",
+    "videoOff": "Turn camera on",
+    "endCall": "End call",
+    "leave": "Leave",
+    "ended": "The call has ended.",
+    "errors": {
+      "permission": "GramSathi needs permission to use your camera and microphone. Allow access in your browser, then try again.",
+      "unsupported": "This browser can't make video calls. Please open GramSathi in Chrome, Firefox or Safari.",
+      "connection": "The connection dropped. Check your internet and rejoin.",
+      "generic": "The video call couldn't start. Check your camera and microphone, then try again.",
+      "noRoom": "This consultation isn't available. Go back and open it from your appointments."
+    }
+  },
+  "profile": {
+    "title": "Your profile",
+    "subtitle": "This is what doctors and pharmacies see.",
+    "edit": "Edit profile",
+    "saved": "Profile updated.",
+    "saveError": "Your profile couldn't be saved. Please try again.",
+    "loadError": "We couldn't load your profile.",
+    "bio": "About you",
+    "bioPlaceholder": "Anything a doctor should know about you.",
+    "age": "Age",
+    "village": "Village or town",
+    "specialization": "Specialization",
+    "qualification": "Qualification",
+    "availability": "Available hours",
+    "notProvided": "Not provided",
+    "changePassword": "Change password",
+    "currentPassword": "Current password",
+    "newPassword": "New password",
+    "confirmNewPassword": "Confirm new password",
+    "updatePassword": "Update password",
+    "passwordUpdated": "Password updated.",
+    "passwordError": "Your password couldn't be updated. Check your current password and try again."
+  },
+  "pharmacy": {
+    "title": "Pharmacies near you",
+    "subtitle": "Order medicine for delivery or pickup.",
+    "searchPlaceholder": "Search pharmacies…",
+    "locationPlaceholder": "Filter by location…",
+    "empty": "No pharmacies found",
+    "emptyHelp": "Try clearing the filters, or check back soon.",
+    "loadError": "We couldn't load pharmacies.",
+    "shopNow": "Shop",
+    "delivery": "Delivers",
+    "pickup": "Pickup only",
+    "open": "Open",
+    "medicines": "Medicines",
+    "searchMedicines": "Search medicines…",
+    "allCategories": "All categories",
+    "inStock": "In stock",
+    "lowStock": "Low stock",
+    "outOfStock": "Out of stock",
+    "addToCart": "Add to cart",
+    "added": "Added to your cart.",
+    "cart": "Cart",
+    "cartEmpty": "Your cart is empty",
+    "cartEmptyHelp": "Add medicines to get started.",
+    "clearCart": "Clear cart",
+    "cartCleared": "Cart cleared.",
+    "checkout": "Checkout",
+    "total": "Total",
+    "noMedicines": "No medicines listed yet",
+    "noMedicinesHelp": "This pharmacy hasn't added any stock."
+  },
+  "emergency": {
+    "button": "Emergency",
+    "title": "Get help now",
+    "description": "Tap a number to call. These are free national helplines.",
+    "services": {
+      "ambulance": "Ambulance",
+      "emergency": "Police, fire or ambulance",
+      "health": "Health advice helpline"
+    },
+    "note": "If someone is unconscious, bleeding heavily or struggling to breathe, call 108 immediately."
   },
   "errors": {
     "somethingWentWrong": "Something went wrong.",
-    "errorFetchingProfile": "Error fetching profile",
-    "loginError": "Invalid email or password",
-    "registerError": "Error during registration"
+    "tryAgain": "Please try again.",
+    "network": "Can't reach the server. Check your connection and try again.",
+    "loadFailed": "We couldn't load this.",
+    "saveFailed": "We couldn't save that."
+  },
+  "hospital": {
+    "title": "Hospital",
+    "profile": "Hospital profile",
+    "address": "Address",
+    "doctors": "Doctors",
+    "pharmacies": "Associated pharmacies",
+    "addDoctor": "Add doctor",
+    "addDoctorHelp": "Enter the email the doctor registered with.",
+    "addPharmacy": "Add pharmacy",
+    "choosePharmacy": "Choose a pharmacy",
+    "doctorAdded": "Doctor added.",
+    "doctorRemoved": "Doctor removed.",
+    "pharmacyAdded": "Pharmacy added.",
+    "pharmacyRemoved": "Pharmacy removed.",
+    "doctorNotFound": "No doctor is registered with that email.",
+    "noDoctors": "No doctors yet",
+    "noDoctorsHelp": "Add a doctor by the email they registered with.",
+    "noPharmacies": "No pharmacies yet",
+    "noPharmaciesHelp": "Associate a pharmacy so your patients can order from it.",
+    "removeTitle": "Remove from this hospital?",
+    "removeMessage": "{{name}} will no longer be associated with this hospital. You can add them again later.",
+    "loadError": "We couldn't load your hospital details."
+  },
+  "landing": {
+    "eyebrow": "Rural healthcare, reimagined",
+    "headlineA": "Quality care,",
+    "headlineB": "without the journey",
+    "chipLive": "Doctor is online",
+    "chipLang": "In your language",
+    "howEyebrow": "How it works",
+    "howTitle": "Three steps to seeing a doctor",
+    "howSubtitle": "No clinic queue, no bus fare, no forms to fill in a language you don't read.",
+    "step1": {
+      "title": "Tell us what's wrong",
+      "description": "Describe your symptoms in your own words, or record a short video or voice note if typing is hard."
+    },
+    "step2": {
+      "title": "A doctor confirms a time",
+      "description": "Pick a day that suits you. A qualified doctor reviews your request and assigns a time slot."
+    },
+    "step3": {
+      "title": "Meet, and get your medicine",
+      "description": "Join the video call from your phone. Your prescription is saved, and you can order the medicine from a nearby pharmacy."
+    },
+    "featuresEyebrow": "Everything included",
+    "rolesEyebrow": "Built for everyone",
+    "rolesTitle": "One platform, four kinds of people",
+    "rolesSubtitle": "Patients, doctors, pharmacies and hospitals each get a workspace built around what they actually do.",
+    "roleCopy": {
+      "patient": "Book consultations, keep your records, check symptoms and order medicine — all from one phone.",
+      "doctor": "See today's schedule at a glance, review requests with the patient's own video, and write records in the consultation.",
+      "pharmacy": "Manage stock, receive orders in real time, and keep customers updated from order to doorstep.",
+      "hospital": "Bring your doctors and partner pharmacies together under one roof, and manage who's associated with you."
+    },
+    "ctaNote": "Free to join. No card required."
   }
 }

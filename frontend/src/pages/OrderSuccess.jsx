@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import Dashboard from '../components/Dashboard'
+import PageLayout from '../components/PageLayout'
+import { useToast } from '../components/ui/Toast'
 import api from '../services/api'
 
 export default function OrderSuccess() {
+  const toast = useToast()
   const { orderId } = useParams()
   const navigate = useNavigate()
   const user = JSON.parse(localStorage.getItem('user') || 'null')
@@ -26,7 +28,7 @@ export default function OrderSuccess() {
       setOrder(data)
     } catch (error) {
       console.error('Error fetching order:', error)
-      alert('Order not found')
+      toast.error('Order not found')
       navigate('/patient')
     } finally {
       setLoading(false)
@@ -48,27 +50,27 @@ export default function OrderSuccess() {
 
   if (loading) {
     return (
-      <Dashboard title="Order Confirmation">
+      <PageLayout title="Order Confirmation">
         <div className="flex justify-center items-center h-64">
           <div className="text-lg">Loading order details...</div>
         </div>
-      </Dashboard>
+      </PageLayout>
     )
   }
 
   if (!order) {
     return (
-      <Dashboard title="Order Not Found">
+      <PageLayout title="Order Not Found">
         <div className="text-center py-12">
           <div className="text-gray-500 text-lg mb-4">Order not found</div>
           <Link to="/patient" className="btn-primary">Back to Dashboard</Link>
         </div>
-      </Dashboard>
+      </PageLayout>
     )
   }
 
   return (
-    <Dashboard title="Order Placed Successfully! 🎉">
+    <PageLayout title="Order Placed Successfully! 🎉">
       <div className="max-w-4xl mx-auto space-y-6">
         
         {/* Success Message */}
@@ -262,6 +264,6 @@ export default function OrderSuccess() {
         </div>
 
       </div>
-    </Dashboard>
+    </PageLayout>
   )
 }

@@ -1,199 +1,256 @@
-import React, { useState, useEffect } from 'react';
-import api from '../services/api';
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
+import api, { friendlyError } from '../services/api'
+import { useAuth } from '../context/AuthContext'
+import { useToast } from './ui/Toast'
+import Card, { CardBody, CardHeader } from './ui/Card'
+import Button from './ui/Button'
+import Avatar from './ui/Avatar'
+import Modal from './ui/Modal'
+import { Field, Textarea, Select } from './ui/Field'
+import { SkeletonList } from './ui/Skeleton'
+import { EmptyState, ErrorState } from './ui/States'
+import { formatDate } from '../lib/status'
 
 export default function PatientTracker() {
-  const user = JSON.parse(localStorage.getItem('user') || 'null');
-  const [appointments, setAppointments] = useState([]);
-  const [selectedPatient, setSelectedPatient] = useState(null);
-  const [patientRecords, setPatientRecords] = useState([]);
-  const [newRecord, setNewRecord] = useState({ diagnosis: '', prescription: '' });
-  const [message, setMessage] = useState({ text: '', type: '' });
+  const { t, i18n } = useTranslation()
+  const { userId } = useAuth()
+  const toast = useToast()
 
-  useEffect(() => {
-    if (user) {
-      loadAppointments();
-    }
-  }, []);
+  const [appointments, setAppointments] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
+  const [selected, setSelected] = useState(null)
+  const [records, setRecords] = useState([])
+  const [recordsLoading, setRecordsLoading] = useState(false)
 
-  const loadAppointments = async () => {
+  const [writeOpen, setWriteOpen] = useState(false)
+  const [draft, setDraft] = useState({ appointmentId: '', diagnosis: '', prescription: '' })
+  const [saving, setSaving] = useState(false)
+
+  const load = useCallback(async () => {
+    if (!userId) return
+    setLoadError(false)
     try {
-      const { data } = await api.get(`/appointments/doctor/${user.id}`);
-      setAppointments(data);
-    } catch (error) {
-      setMessage({ text: 'Error loading appointments', type: 'error' });
+      const { data } = await api.get(`/appointments/doctor/${userId}`)
+      setAppointments(data || [])
+    } catch (err) {
+      console.error('Failed to load patients:', err)
+      setLoadError(true)
+    } finally {
+      setLoading(false)
     }
-  };
+  }, [userId])
 
-  const handlePatientSelect = async (patient) => {
-    setSelectedPatient(patient);
+  useEffect(() => { load() }, [load])
+
+  const patients = useMemo(() => {
+    const seen = new Map()
+    for (const appointment of appointments) {
+      const patient = appointment.patientId
+      if (patient?._id && !seen.has(patient._id)) seen.set(patient._id, patient)
+    }
+    return [...seen.values()]
+  }, [appointments])
+
+  // Appointments for this patient, so the doctor chooses which visit the
+  // record belongs to instead of it silently binding to whichever one
+  // Array.find happened to return first.
+  const patientAppointments = useMemo(
+    () => appointments.filter(a => a.patientId?._id === selected?._id),
+    [appointments, selected]
+  )
+
+  const selectPatient = async (patient) => {
+    setSelected(patient)
+    setRecordsLoading(true)
     try {
-      const { data } = await api.get(`/records/${patient._id}`);
-      setPatientRecords(data);
-    } catch (error) {
-      setPatientRecords([]);
-      setMessage({ text: 'No records found or error loading records', type: 'info' });
+      const { data } = await api.get(`/records/${patient._id}`)
+      setRecords(data || [])
+    } catch (err) {
+      console.error('Failed to load patient records:', err)
+      setRecords([])
+    } finally {
+      setRecordsLoading(false)
     }
-  };
+  }
 
-  const handleInputChange = (e) => {
-    setNewRecord({ ...newRecord, [e.target.name]: e.target.value });
-  };
+  const openWrite = () => {
+    setDraft({
+      appointmentId: patientAppointments[0]?._id || '',
+      diagnosis: '',
+      prescription: ''
+    })
+    setWriteOpen(true)
+  }
 
-  const handleSubmitRecord = async (e) => {
-    e.preventDefault();
-    if (!selectedPatient || !newRecord.diagnosis) {
-      setMessage({ text: 'Please select a patient and enter diagnosis', type: 'error' });
-      return;
-    }
-
+  const saveRecord = async (e) => {
+    e.preventDefault()
+    setSaving(true)
     try {
-      // Find the latest appointment for this patient
-      const appointment = appointments.find(a => a.patientId._id === selectedPatient._id);
-      if (!appointment) {
-        setMessage({ text: 'No appointment found for this patient', type: 'error' });
-        return;
-      }
-
       await api.post('/records/create', {
-        patientId: selectedPatient._id,
-        appointmentId: appointment._id,
-        diagnosis: newRecord.diagnosis,
-        prescription: newRecord.prescription
-      });
-
-      // Refresh records
-      const { data } = await api.get(`/records/${selectedPatient._id}`);
-      setPatientRecords(data);
-      
-      // Reset form
-      setNewRecord({ diagnosis: '', prescription: '' });
-      setMessage({ text: 'Health record created successfully', type: 'success' });
-      
-      setTimeout(() => setMessage({ text: '', type: '' }), 3000);
-    } catch (error) {
-      setMessage({ text: 'Error creating health record', type: 'error' });
+        patientId: selected._id,
+        appointmentId: draft.appointmentId,
+        diagnosis: draft.diagnosis,
+        prescription: draft.prescription
+      })
+      toast.success(t('records.recordSaved'))
+      setWriteOpen(false)
+      selectPatient(selected)
+    } catch (err) {
+      console.error('Record save failed:', err)
+      toast.error(friendlyError(err))
+    } finally {
+      setSaving(false)
     }
-  };
+  }
 
-  // Group patients by unique patient ID
-  const uniquePatients = appointments.reduce((acc, appointment) => {
-    const patientId = appointment.patientId?._id;
-    if (patientId && !acc.some(p => p._id === patientId)) {
-      acc.push(appointment.patientId);
-    }
-    return acc;
-  }, []);
+  if (loading) return <SkeletonList count={2} />
+  if (loadError) {
+    return <Card><CardBody><ErrorState onRetry={load} retryLabel={t('common.retry')} /></CardBody></Card>
+  }
+  if (patients.length === 0) {
+    return (
+      <Card><CardBody>
+        <EmptyState title={t('records.noPatients')} message={t('records.noPatientsHelp')} />
+      </CardBody></Card>
+    )
+  }
 
   return (
-    <div className="space-y-6">
-      <div className="card">
-        <div className="card-body">
-          <div className="section-title mb-4">Patient Tracker</div>
-          
-          {message.text && (
-            <div className={`p-3 rounded mb-4 ${message.type === 'success' ? 'bg-green-100 text-green-700' : message.type === 'info' ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700'}`}>
-              {message.text}
-            </div>
-          )}
-          
-          <div className="grid md:grid-cols-2 gap-6">
-            <div>
-              <h3 className="font-semibold text-lg mb-3">Your Patients</h3>
-              {uniquePatients.length > 0 ? (
-                <ul className="space-y-2">
-                  {uniquePatients.map((patient) => (
-                    <li 
-                      key={patient._id} 
-                      className={`border p-3 rounded cursor-pointer transition-colors ${selectedPatient?._id === patient._id ? 'bg-blue-50 border-blue-200' : 'hover:bg-gray-50'}`}
-                      onClick={() => handlePatientSelect(patient)}
+    <>
+      <div className="grid gap-5 lg:grid-cols-5">
+        <div className="lg:col-span-2">
+          <Card>
+            <CardHeader><h2 className="card-title">{t('doctor.sections.patients')}</h2></CardHeader>
+            <CardBody className="p-0 sm:p-0">
+              <ul className="divide-y divide-line-soft max-h-[32rem] overflow-y-auto">
+                {patients.map(patient => (
+                  <li key={patient._id}>
+                    <button
+                      type="button"
+                      onClick={() => selectPatient(patient)}
+                      aria-current={selected?._id === patient._id}
+                      className={`w-full text-left flex items-center gap-3 px-5 py-4 min-h-touch transition-colors
+                                  ${selected?._id === patient._id ? 'bg-primary-50' : 'hover:bg-surface-2'}`}
                     >
-                      <div className="font-medium">{patient.name}</div>
-                      {patient.age && <div className="text-sm text-gray-600">Age: {patient.age}</div>}
-                      {patient.village && <div className="text-sm text-gray-600">Village: {patient.village}</div>}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-gray-500">No patients found</p>
-              )}
-            </div>
-            
-            <div>
-              {selectedPatient ? (
-                <div>
-                  <h3 className="font-semibold text-lg mb-3">Patient Details</h3>
-                  <div className="p-4 border rounded bg-gray-50 mb-4">
-                    <h4 className="font-medium">{selectedPatient.name}</h4>
-                    {selectedPatient.age && <p className="text-sm">Age: {selectedPatient.age}</p>}
-                    {selectedPatient.village && <p className="text-sm">Village: {selectedPatient.village}</p>}
+                      <Avatar name={patient.name} size="sm" />
+                      <span className="min-w-0">
+                        <span className="block font-medium text-ink truncate">{patient.name}</span>
+                        <span className="block text-caption text-muted truncate">
+                          {[patient.age, patient.village].filter(Boolean).join(' · ') || patient.email}
+                        </span>
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </CardBody>
+          </Card>
+        </div>
+
+        <div className="lg:col-span-3">
+          {!selected ? (
+            <Card><CardBody>
+              <EmptyState title={t('records.selectPatient')} message={t('records.selectPatientHelp')} />
+            </CardBody></Card>
+          ) : (
+            <Card>
+              <CardHeader>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <Avatar name={selected.name} size="md" />
+                    <div className="min-w-0">
+                      <h2 className="card-title truncate">{selected.name}</h2>
+                      <p className="text-small text-muted truncate">
+                        {[selected.age, selected.village].filter(Boolean).join(' · ') || selected.email}
+                      </p>
+                    </div>
                   </div>
-                  
-                  <h3 className="font-semibold text-lg mb-3">Add Health Record</h3>
-                  <form onSubmit={handleSubmitRecord} className="space-y-3">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Diagnosis</label>
-                      <textarea 
-                        name="diagnosis" 
-                        value={newRecord.diagnosis} 
-                        onChange={handleInputChange} 
-                        className="input h-20"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Prescription</label>
-                      <textarea 
-                        name="prescription" 
-                        value={newRecord.prescription} 
-                        onChange={handleInputChange} 
-                        className="input h-20"
-                      />
-                    </div>
-                    <button type="submit" className="btn-primary">Save Record</button>
-                  </form>
+                  <Button size="sm" onClick={openWrite} disabled={patientAppointments.length === 0}>
+                    {t('records.addTitle')}
+                  </Button>
                 </div>
-              ) : (
-                <p className="text-gray-500">Select a patient to view details and add health records</p>
-              )}
-            </div>
-          </div>
+              </CardHeader>
+              <CardBody>
+                <h3 className="text-caption font-semibold text-muted uppercase tracking-wide mb-3">
+                  {t('records.history')}
+                </h3>
+                {recordsLoading ? (
+                  <SkeletonList count={1} />
+                ) : records.length === 0 ? (
+                  <p className="text-small text-muted">{t('records.empty')}</p>
+                ) : (
+                  <ul className="flex flex-col gap-3">
+                    {records.map(record => (
+                      <li key={record._id} className="border border-line rounded-card p-4">
+                        <p className="text-caption text-muted mb-2">{formatDate(record.createdAt, i18n.language)}</p>
+                        <p className="text-small font-medium text-ink mb-1">{t('records.diagnosis')}</p>
+                        <p className="text-small text-body mb-3 whitespace-pre-line">{record.diagnosis}</p>
+                        {record.prescription && (
+                          <>
+                            <p className="text-small font-medium text-ink mb-1">{t('records.prescription')}</p>
+                            <p className="text-small text-body whitespace-pre-line">{record.prescription}</p>
+                          </>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </CardBody>
+            </Card>
+          )}
         </div>
       </div>
-      
-      {selectedPatient && patientRecords.length > 0 && (
-        <div className="card">
-          <div className="card-body">
-            <h3 className="font-semibold text-lg mb-3">Health Records History</h3>
-            <div className="space-y-4">
-              {patientRecords.map((record) => (
-                <div key={record._id} className="border p-4 rounded">
-                  <div className="flex justify-between">
-                    <div className="font-medium">Date: {new Date(record.createdAt).toLocaleString()}</div>
-                    <a 
-                      href={`/api/records/${selectedPatient._id}/download`} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:underline text-sm"
-                    >
-                      Download PDF
-                    </a>
-                  </div>
-                  <div className="mt-2">
-                    <div className="text-sm font-medium text-gray-700">Diagnosis:</div>
-                    <p className="text-gray-600">{record.diagnosis}</p>
-                  </div>
-                  {record.prescription && (
-                    <div className="mt-2">
-                      <div className="text-sm font-medium text-gray-700">Prescription:</div>
-                      <p className="text-gray-600">{record.prescription}</p>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+
+      <Modal
+        open={writeOpen}
+        onClose={() => setWriteOpen(false)}
+        title={t('records.addForPatient', { name: selected?.name || '' })}
+        size="lg"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setWriteOpen(false)}>{t('common.cancel')}</Button>
+            <Button form="record-form" type="submit" loading={saving} disabled={!draft.diagnosis.trim()}>
+              {t('records.saveRecord')}
+            </Button>
+          </>
+        }
+      >
+        <form id="record-form" onSubmit={saveRecord} className="flex flex-col gap-4">
+          <Field label={t('records.forAppointment')} required>
+            {(props) => (
+              <Select
+                {...props} required value={draft.appointmentId}
+                onChange={(e) => setDraft(d => ({ ...d, appointmentId: e.target.value }))}
+              >
+                {patientAppointments.map(a => (
+                  <option key={a._id} value={a._id}>
+                    {formatDate(a.confirmedDate || a.requestedDate, i18n.language)}
+                    {a.timeSlot ? ` · ${a.timeSlot}` : ''}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </Field>
+          <Field label={t('records.diagnosis')} required>
+            {(props) => (
+              <Textarea
+                {...props} rows="4" required placeholder={t('records.diagnosisPlaceholder')}
+                value={draft.diagnosis} onChange={(e) => setDraft(d => ({ ...d, diagnosis: e.target.value }))}
+              />
+            )}
+          </Field>
+          <Field label={t('records.prescription')}>
+            {(props) => (
+              <Textarea
+                {...props} rows="4" placeholder={t('records.prescriptionPlaceholder')}
+                value={draft.prescription} onChange={(e) => setDraft(d => ({ ...d, prescription: e.target.value }))}
+              />
+            )}
+          </Field>
+        </form>
+      </Modal>
+    </>
+  )
 }

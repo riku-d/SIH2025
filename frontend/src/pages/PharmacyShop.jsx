@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
-import Dashboard from '../components/Dashboard'
-import api from '../services/api'
+import { useParams, useNavigate , Link} from 'react-router-dom'
+import PageLayout from '../components/PageLayout'
+import { useToast } from '../components/ui/Toast'
+import api, { friendlyError } from '../services/api'
 import { io } from 'socket.io-client'
 
 const SOCKET_URL = import.meta.env.VITE_SIGNAL_URL || 'http://localhost:5000'
 
 export default function PharmacyShop() {
+  const toast = useToast()
   const { pharmacyId } = useParams()
   const navigate = useNavigate()
   const user = JSON.parse(localStorage.getItem('user') || 'null')
@@ -20,6 +22,7 @@ export default function PharmacyShop() {
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [showCart, setShowCart] = useState(false)
+  const [loadError, setLoadError] = useState(false)
 
   useEffect(() => {
     const socket = io(SOCKET_URL)
@@ -100,10 +103,12 @@ export default function PharmacyShop() {
       if (categoryFilter !== 'all') params.category = categoryFilter
       
       const { data } = await api.get(`/pharmacy/${pharmacyId}/medicines`, { params })
-      setMedicines(data.medicines)
-      setTotalPages(data.totalPages)
+      setMedicines(Array.isArray(data?.medicines) ? data.medicines : [])
+      setTotalPages(data?.totalPages || 1)
     } catch (error) {
       console.error('Error fetching medicines:', error)
+      setMedicines([])
+      setLoadError(true)
     }
   }
 
@@ -115,9 +120,9 @@ export default function PharmacyShop() {
         quantity
       })
       setCart(data)
-      alert('Added to cart successfully!')
+      toast.success('Added to cart successfully!')
     } catch (error) {
-      alert('Error adding to cart: ' + error.response?.data?.message)
+      toast.error(friendlyError(error))
     }
   }
 
@@ -126,7 +131,7 @@ export default function PharmacyShop() {
       const { data } = await api.put(`/pharmacy/cart/${pharmacyId}/${medicineId}`, { quantity })
       setCart(data)
     } catch (error) {
-      alert('Error updating cart: ' + error.response?.data?.message)
+      toast.error(friendlyError(error))
     }
   }
 
@@ -135,7 +140,7 @@ export default function PharmacyShop() {
       const { data } = await api.delete(`/pharmacy/cart/${pharmacyId}/${medicineId}`)
       setCart(data)
     } catch (error) {
-      alert('Error removing from cart: ' + error.response?.data?.message)
+      toast.error(friendlyError(error))
     }
   }
 
@@ -143,9 +148,9 @@ export default function PharmacyShop() {
     try {
       const { data } = await api.delete(`/pharmacy/cart/${pharmacyId}/clear`)
       setCart(data)
-      alert('Cart cleared successfully!')
+      toast.success('Cart cleared successfully!')
     } catch (error) {
-      alert('Error clearing cart: ' + error.response?.data?.message)
+      toast.error(friendlyError(error))
     }
   }
 
@@ -166,59 +171,64 @@ export default function PharmacyShop() {
 
   if (loading) {
     return (
-      <Dashboard title="Loading...">
+      <PageLayout title="Loading...">
         <div className="flex justify-center items-center h-64">
           <div className="text-lg">Loading pharmacy...</div>
         </div>
-      </Dashboard>
+      </PageLayout>
     )
   }
 
   if (!pharmacy) {
     return (
-      <Dashboard title="Pharmacy Not Found">
+      <PageLayout title="Pharmacy Not Found">
         <div className="text-center py-12">
           <div className="text-gray-500 text-lg">Pharmacy not found</div>
         </div>
-      </Dashboard>
+      </PageLayout>
     )
   }
 
   return (
-    <Dashboard title={pharmacy.name}>
+    <PageLayout title={pharmacy.name}>
       {/* Pharmacy Header */}
       <div className="card mb-6">
         <div className="card-body">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="md:col-span-2">
-              <h2 className="section-title mb-2">{pharmacy.name}</h2>
-              <div className="space-y-2 text-gray-600">
-                <div>📍 {pharmacy.address || pharmacy.location}</div>
-                <div>📞 {pharmacy.contact}</div>
-                {pharmacy.email && <div>📧 {pharmacy.email}</div>}
-                <div>⏰ {pharmacy.openingHours?.open} - {pharmacy.openingHours?.close}</div>
-                {pharmacy.deliveryAvailable && (
-                  <div className="text-green-600">🚚 Delivery available within {pharmacy.deliveryRadius}km</div>
-                )}
-              </div>
-              {pharmacy.description && (
-                <div className="mt-4 text-gray-700">
-                  {pharmacy.description}
+          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6">
+            <div className="min-w-0">
+              <dl className="text-small text-body space-y-1.5">
+                <div><dt className="sr-only">Address</dt><dd>{pharmacy.address || pharmacy.location}</dd></div>
+                <div><dt className="sr-only">Phone</dt><dd className="tabular">{pharmacy.contact}</dd></div>
+                {pharmacy.email && <div><dt className="sr-only">Email</dt><dd className="break-all">{pharmacy.email}</dd></div>}
+                <div>
+                  <dt className="sr-only">Opening hours</dt>
+                  <dd className="tabular">{pharmacy.openingHours?.open} – {pharmacy.openingHours?.close}</dd>
                 </div>
+              </dl>
+              {pharmacy.deliveryAvailable && (
+                <span className="badge badge-success mt-3">
+                  {pharmacy.deliveryRadius
+                    ? `Delivers within ${pharmacy.deliveryRadius}km`
+                    : 'Delivery available'}
+                </span>
+              )}
+              {pharmacy.description && (
+                <p className="mt-4 text-small text-muted max-w-prose">{pharmacy.description}</p>
               )}
             </div>
-            
+
             {user?.role === 'patient' && (
-              <div className="flex flex-col justify-center">
-                <button 
+              <div className="shrink-0 md:text-right">
+                <button
+                  type="button"
                   onClick={() => setShowCart(!showCart)}
-                  className="btn-primary mb-2 relative"
+                  className="btn btn-primary"
                 >
-                  🛒 Cart ({getCartItemCount()})
+                  Cart ({getCartItemCount()})
                 </button>
-                <div className="text-sm text-gray-600 text-center">
+                <p className="text-caption text-muted mt-2 tabular">
                   Total: ₹{cart?.totalAmount || 0}
-                </div>
+                </p>
               </div>
             )}
           </div>
@@ -292,7 +302,7 @@ export default function PharmacyShop() {
                       <button 
                         onClick={() => {
                           if (!cart?.items?.length || cart.items.length === 0) {
-                            alert('Your cart is empty!')
+                            toast.error('Your cart is empty!')
                             return
                           }
                           setShowCart(false)
@@ -425,7 +435,17 @@ export default function PharmacyShop() {
         ))}
       </div>
 
-      {medicines.length === 0 && (
+      {loadError && medicines.length === 0 && (
+        <div className="card">
+          <div className="card-body text-center py-12">
+            <h3 className="card-title mb-1.5">We couldn't load the medicine list</h3>
+            <p className="text-small text-muted mb-5">Check your connection and try again.</p>
+            <button type="button" onClick={() => fetchMedicines()} className="btn btn-secondary">Try again</button>
+          </div>
+        </div>
+      )}
+
+      {!loadError && medicines.length === 0 && (
         <div className="text-center py-12">
           <div className="text-gray-500 text-lg mb-2">No medicines found</div>
           <div className="text-gray-400">
@@ -467,11 +487,11 @@ export default function PharmacyShop() {
       {!user && (
         <div className="mt-8 text-center">
           <div className="text-gray-600 mb-4">Please login as a patient to add medicines to cart</div>
-          <a href="/login" className="btn-primary">
+          <Link to="/login" className="btn btn-primary">
             Login
-          </a>
+          </Link>
         </div>
       )}
-    </Dashboard>
+    </PageLayout>
   )
 }

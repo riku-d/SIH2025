@@ -3,13 +3,29 @@
 @tailwind utilities;
 
 @layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
   body {
-    @apply bg-white min-h-screen text-slate-800 font-sans;
+    @apply bg-ground text-body font-sans antialiased;
+    font-size: 1rem;
+    line-height: 1.6;
   }
-  
+
   h1, h2, h3, h4, h5, h6 {
-    @apply font-semibold text-slate-900;
+    @apply text-ink font-semibold;
+    text-wrap: balance;
   }
+
+  /* One focus ring for every interactive element. Previously only
+     .input had one, which left the whole app invisible to keyboard users. */
+  :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+    @apply outline-none ring-2 ring-accent-400 ring-offset-2 ring-offset-surface rounded-control;
+  }
+
+  /* Numeric columns line up wherever digits are compared. */
+  .tabular { font-variant-numeric: tabular-nums; }
 }
 
 @layer components {
@@ -17,74 +33,270 @@
     @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
   }
 
+  /* ---------- Card ----------
+     .card owns the frame only. Padding lives in the slots, so the 74
+     existing `card-body` call sites finally do something. */
   .card {
-    @apply bg-white rounded-xl shadow-md p-6 border border-slate-100 hover:shadow-lg transition-shadow duration-300;
+    @apply bg-surface rounded-card border border-line shadow-rest;
   }
+  .card-interactive {
+    @apply transition-shadow duration-200 hover:shadow-raised hover:border-primary-200;
+  }
+  .card-body   { @apply p-5 sm:p-6; }
+  .card-header { @apply px-5 sm:px-6 pt-5 sm:pt-6 pb-4 border-b border-line-soft; }
+  .card-footer { @apply px-5 sm:px-6 py-4 border-t border-line-soft bg-surface-2 rounded-b-card; }
+  .card-muted  { @apply bg-surface-2 border-line; }
 
+  /* ---------- Buttons ----------
+     .btn owns geometry; variants own colour only. */
   .btn {
-    @apply px-4 py-2 rounded-md font-medium transition-all duration-200 inline-flex items-center justify-center;
+    @apply inline-flex items-center justify-center gap-2 rounded-control font-medium
+           transition-colors duration-150 select-none
+           px-4 py-2.5 text-small min-h-touch
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none;
   }
+  .btn-sm { @apply px-3 py-1.5 text-caption min-h-0 gap-1.5; }
+  .btn-lg { @apply px-6 py-3 text-base; }
+  .btn-block { @apply w-full; }
 
-  .btn-primary {
-    @apply bg-blue-600 text-white hover:bg-blue-700 px-4 py-2 rounded-md font-medium shadow-sm hover:shadow;
+  .btn-primary   { @apply bg-primary-600 text-white hover:bg-primary-500 shadow-rest; }
+  .btn-secondary { @apply bg-surface-2 text-ink border border-line hover:bg-line-soft; }
+  .btn-outline   { @apply border border-primary-600 text-primary-600 bg-transparent hover:bg-primary-50; }
+  .btn-ghost     { @apply text-body bg-transparent hover:bg-surface-2; }
+  .btn-danger    { @apply bg-danger-500 text-white hover:bg-danger-600 shadow-rest; }
+  .btn-accent    { @apply bg-accent-500 text-white hover:bg-accent-600 shadow-rest; }
+
+  /* Icon-only buttons must still clear the 44px touch target. */
+  .btn-icon { @apply p-0 w-11 h-11 min-w-touch; }
+
+  /* ---------- Forms ---------- */
+  .field { @apply flex flex-col gap-1.5; }
+
+  .label {
+    @apply text-small font-medium text-ink;
   }
-
-  .btn-secondary {
-    @apply bg-slate-100 text-slate-700 hover:bg-slate-200 px-4 py-2 rounded-md font-medium;
-  }
-
-  .btn-outline {
-    @apply border border-blue-600 text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-md font-medium;
+  .label-required::after {
+    content: '*';
+    @apply text-danger-500 ml-0.5;
   }
 
   .input {
-    @apply w-full border border-slate-200 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent;
+    @apply w-full bg-surface border border-line rounded-control
+           px-3 py-2.5 text-base text-ink min-h-touch
+           placeholder:text-muted
+           focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500
+           disabled:bg-surface-2 disabled:text-muted;
+  }
+  .input-error {
+    @apply border-danger-500 focus:ring-danger-500 focus:border-danger-500;
+  }
+  textarea.input { @apply min-h-[96px] py-3; }
+  select.input   { @apply pr-9 appearance-none bg-no-repeat;
+                   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%2366797B'%3E%3Cpath fill-rule='evenodd' d='M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z' clip-rule='evenodd'/%3E%3C/svg%3E");
+                   background-position: right 0.65rem center;
+                   background-size: 1.15em; }
+
+  .hint      { @apply text-caption text-muted; }
+  .error-text{ @apply text-caption text-danger-500 font-medium; }
+
+  /* ---------- Typography helpers ---------- */
+  .page-title    { @apply text-h1 text-ink; }
+  .section-title { @apply text-h2 text-ink; }
+  .card-title    { @apply text-h3 text-ink; }
+  .meta          { @apply text-caption text-muted; }
+
+  /* ---------- Status ----------
+     Status is a stripe plus a badge on a neutral surface — never a
+     background flood, which is what dropped card text below AA. */
+  .badge {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full
+           text-caption font-semibold whitespace-nowrap border;
+  }
+  .badge-neutral { @apply bg-surface-2 text-body border-line; }
+  .badge-success { @apply bg-success-50 text-success-600 border-success-100; }
+  .badge-warning { @apply bg-warning-50 text-warning-600 border-warning-100; }
+  .badge-danger  { @apply bg-danger-50  text-danger-600  border-danger-100; }
+  .badge-info    { @apply bg-info-50    text-info-600    border-info-100; }
+  .badge-primary { @apply bg-primary-50 text-primary-600 border-primary-100; }
+
+  .stripe        { @apply border-l-[3px]; }
+  .stripe-neutral{ @apply border-l-line; }
+  .stripe-success{ @apply border-l-success-500; }
+  .stripe-warning{ @apply border-l-warning-500; }
+  .stripe-danger { @apply border-l-danger-500; }
+  .stripe-info   { @apply border-l-info-500; }
+
+  /* ---------- Alerts ---------- */
+  .alert {
+    @apply flex gap-3 items-start p-4 rounded-card border text-small;
+  }
+  .alert-info    { @apply bg-info-50    border-info-100    text-info-600; }
+  .alert-success { @apply bg-success-50 border-success-100 text-success-600; }
+  .alert-warning { @apply bg-warning-50 border-warning-100 text-warning-600; }
+  .alert-error   { @apply bg-danger-50  border-danger-100  text-danger-600; }
+
+  /* ---------- Skeletons ---------- */
+  .skeleton {
+    @apply relative overflow-hidden bg-surface-2 rounded-control;
+  }
+  .skeleton::after {
+    content: '';
+    @apply absolute inset-0 -translate-x-full;
+    background-image: linear-gradient(90deg, transparent, rgba(255,255,255,.65), transparent);
+    animation: shimmer 1.5s infinite;
   }
 
-  .section-title {
-    @apply text-3xl font-bold text-slate-900 mb-4;
+  /* ---------- Tabs ---------- */
+  .tabs {
+    @apply flex gap-1 overflow-x-auto border-b border-line -mb-px
+           scrollbar-none snap-x;
   }
-  
-  .section-subtitle {
-    @apply text-xl font-medium text-slate-700 mb-6;
+  .tab {
+    @apply shrink-0 snap-start px-3 sm:px-4 py-3 text-small font-medium whitespace-nowrap
+           border-b-2 border-transparent text-muted min-h-touch
+           hover:text-ink hover:border-line transition-colors;
   }
-  
-  .gradient-text {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600;
+  .tab-active { @apply border-primary-600 text-primary-600; }
+
+  /* Action tile — the primary "what do you want to do" affordance.
+     Reads as a control, not a paragraph in a box. */
+  /* `group` cannot be @applied — call sites add it alongside this class. */
+  .action-tile {
+    @apply relative flex items-center gap-4 p-5 rounded-sheet bg-surface border border-line
+           transition-all duration-200 no-underline
+           hover:border-primary-300 hover:shadow-lifted hover:-translate-y-0.5;
   }
-  
-  .feature-card {
-    @apply flex flex-col items-center text-center p-6 rounded-xl bg-white border border-slate-100 shadow-sm hover:shadow-md transition-all duration-300;
+  .action-icon {
+    @apply shrink-0 w-12 h-12 rounded-xl bg-primary-50 text-primary-600
+           flex items-center justify-center transition-colors duration-200
+           group-hover:bg-primary-600 group-hover:text-white;
   }
-  
-  .feature-icon {
-    @apply w-16 h-16 mb-4;
+
+  /* ---------- AI content ----------
+     Replaces the `prose` class, which was used without the typography
+     plugin ever being installed, so markdown rendered completely flat. */
+  .ai-prose { @apply text-body text-base; }
+  .ai-prose > *:first-child { @apply mt-0; }
+  .ai-prose h1, .ai-prose h2 { @apply text-h3 text-ink mt-5 mb-2; }
+  .ai-prose h3, .ai-prose h4 { @apply text-base font-semibold text-ink mt-4 mb-1.5; }
+  .ai-prose p { @apply my-3; }
+  .ai-prose ul { @apply list-disc pl-5 my-3 space-y-1.5; }
+  .ai-prose ol { @apply list-decimal pl-5 my-3 space-y-1.5; }
+  .ai-prose li > p { @apply my-0; }
+  .ai-prose strong { @apply text-ink font-semibold; }
+  .ai-prose em { @apply italic; }
+  .ai-prose code { @apply bg-surface-2 px-1.5 py-0.5 rounded text-small; }
+  .ai-prose pre { @apply bg-surface-2 p-3 rounded-control overflow-x-auto my-3; }
+  .ai-prose hr { @apply my-5 border-line; }
+  .ai-prose a { @apply text-primary-600 underline; }
+  .ai-prose table { @apply w-full my-3 text-small; }
+  .ai-prose th, .ai-prose td { @apply text-left p-2 border-b border-line-soft; }
+
+
+  /* ---------- Depth & surface treatments ----------
+     Flat cards in a uniform grid are what makes a page read as a
+     template. These give surfaces an edge and a sense of layering
+     without costing a single byte of image data. */
+  .card-raised {
+    @apply bg-surface rounded-card border border-line shadow-lifted;
   }
-  
-  .testimonial-card {
-    @apply bg-white p-6 rounded-xl shadow-sm border border-slate-100 relative;
+  .card-glass {
+    @apply rounded-card border border-white/15 bg-white/10 backdrop-blur-md;
   }
-  
-  .testimonial-card::before {
-    content: '"';
-    @apply absolute text-6xl text-blue-100 -top-4 -left-2 font-serif;
+  .hairline { box-shadow: inset 0 0 0 1px rgba(14,26,27,.06); }
+
+  /* Gradient text for a single emphasised phrase, never whole headlines. */
+  .text-gradient {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(100deg, #4FB0AF 0%, #7CBCBB 40%, #E3A94F 100%);
   }
-  
-  .stat-card {
-    @apply flex flex-col items-center justify-center p-6 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl;
+
+  /* Layered aurora ground for the hero — three soft radial washes over
+     a deep base. Pure CSS, so it costs nothing to download. */
+  .aurora {
+    background-color: #062B2D;
+    background-image:
+      radial-gradient(ellipse 80% 60% at 12% 0%,  rgba(14,124,123,.55), transparent 60%),
+      radial-gradient(ellipse 70% 55% at 88% 12%, rgba(201,122,12,.28), transparent 62%),
+      radial-gradient(ellipse 90% 70% at 50% 110%, rgba(79,176,175,.30), transparent 65%);
   }
-  
-  .stat-value {
-    @apply text-4xl font-bold text-blue-600 mb-1;
+
+  /* Faint engineering grid — texture that survives at any size. */
+  .grid-lines {
+    background-image:
+      linear-gradient(rgba(255,255,255,.045) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.045) 1px, transparent 1px);
+    background-size: 56px 56px;
   }
-  
-  .stat-label {
-    @apply text-sm font-medium text-slate-600;
+  .grid-lines-ink {
+    background-image:
+      linear-gradient(rgba(14,26,27,.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(14,26,27,.04) 1px, transparent 1px);
+    background-size: 56px 56px;
   }
-  
-  .footer-link {
-    @apply text-slate-500 hover:text-blue-600 transition-colors;
+
+  /* Eyebrow pill used above section headings. */
+  .eyebrow {
+    @apply inline-flex items-center gap-2 px-3 py-1.5 rounded-full
+           text-caption font-semibold tracking-wide uppercase;
+  }
+  .eyebrow-dark  { @apply bg-white/10 text-white/85 border border-white/15; }
+  .eyebrow-light { @apply bg-primary-50 text-primary-600 border border-primary-100; }
+
+  /* Bento tiles — deliberately unequal, so the grid stops reading as
+     four identical boxes. */
+  .bento {
+    @apply relative overflow-hidden rounded-sheet border border-line bg-surface p-6 sm:p-7;
+  }
+  .bento-dark {
+    @apply relative overflow-hidden rounded-sheet border border-white/10 p-6 sm:p-7 text-white;
+  }
+
+  /* Phone frame for the product shot, drawn rather than photographed. */
+  .device {
+    @apply relative rounded-[2rem] border-[10px] border-ink bg-ink shadow-sheet overflow-hidden;
+  }
+
+  .stat-value { @apply text-d3 text-ink tabular; }
+
+  /* ---------- Misc ---------- */
+  .divider { @apply h-px bg-line-soft; }
+  .link { @apply text-primary-600 hover:text-primary-500 underline underline-offset-2; }
+}
+
+@layer utilities {
+  /* Content is visible by default and only hidden once JS has confirmed
+     it will animate it — otherwise a failed observer, a hidden container
+     or a JS error leaves the page permanently blank. */
+  .reveal { opacity: 1; }
+  html.js-reveal .reveal { opacity: 0; }
+  /* Visibility is a static declaration; the animation only decorates it.
+     Relying on the animation's end state means a throttled or dropped
+     animation leaves content invisible. */
+  html.js-reveal .reveal-in {
+    opacity: 1;
+    animation: reveal-up 620ms cubic-bezier(.16,1,.3,1) forwards;
+  }
+
+  .scrollbar-none { scrollbar-width: none; -ms-overflow-style: none; }
+  .scrollbar-none::-webkit-scrollbar { display: none; }
+
+  /* Accessible name for icon-only controls without visual weight. */
+  .sr-only-focusable:not(:focus):not(:focus-within) {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
   }
 }
 
+/* Animation is feedback, not decoration — and it costs frames on the
+   low-end devices this product targets. */
+@media (prefers-reduced-motion: reduce) {
+  .reveal, .reveal-in { opacity: 1 !important; animation: none !important; transform: none !important; }
 
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

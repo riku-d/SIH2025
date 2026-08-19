@@ -4,7 +4,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { authRequired } from '../middleware/authMiddleware.js';
 import { uploadAppointmentMedia, handleUploadErrors } from '../middleware/uploadMiddleware.js';
-import { bookAppointment, getAppointmentsForPatient, getAppointmentsForDoctor, confirmAppointment, rejectAppointment, completeAppointment } from '../controllers/appointmentController.js';
+import { bookAppointment, getAppointmentsForPatient, getAppointmentsForDoctor, confirmAppointment, rejectAppointment, completeAppointment, cancelAppointment } from '../controllers/appointmentController.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -17,6 +17,7 @@ router.get('/doctor/:id', authRequired, getAppointmentsForDoctor);
 router.put('/:id/confirm', authRequired, confirmAppointment);
 router.put('/:id/reject', authRequired, rejectAppointment);
 router.put('/:id/complete', authRequired, completeAppointment);
+router.put('/:id/cancel', authRequired, cancelAppointment);
 
 // Route to serve uploaded media files
 router.get('/media/:filename', authRequired, (req, res) => {

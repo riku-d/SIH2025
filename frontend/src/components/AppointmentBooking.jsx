@@ -1,577 +1,422 @@
-import React, { useState, useEffect, useRef } from 'react';
-import api from '../services/api';
+import React, { useState, useEffect, useRef, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
+import api, { friendlyError } from '../services/api'
+import { useAuth } from '../context/AuthContext'
+import { useToast } from './ui/Toast'
+import { Field, Input, Textarea, Select } from './ui/Field'
+import Button, { IconButton } from './ui/Button'
+import Card, { CardBody, CardHeader } from './ui/Card'
+import AppointmentCard from './AppointmentCard'
+import DoctorPicker from './DoctorPicker'
+import ConfirmDialog from './ui/ConfirmDialog'
+import { SkeletonList } from './ui/Skeleton'
+import { EmptyState, ErrorState } from './ui/States'
+import { formatFileSize } from '../lib/status'
+
+const MAX_FILES = 5
+const MAX_BYTES = 50 * 1024 * 1024
 
 export default function AppointmentBooking({ onJoinRoom, selectedDoctor: doctorFromProps }) {
-  const user = JSON.parse(localStorage.getItem('user') || 'null');
-  const [doctors, setDoctors] = useState([]);
-  const [selectedDoctor, setSelectedDoctor] = useState(null);
-  const [appointmentDate, setAppointmentDate] = useState('');
-  const [symptoms, setSymptoms] = useState('');
-  const [consultationType, setConsultationType] = useState('video');
-  const [message, setMessage] = useState({ text: '', type: '' });
-  const [userAppointments, setUserAppointments] = useState([]);
-  const [loading, setLoading] = useState(false);
-  
-  // Media upload states
-  const [mediaFiles, setMediaFiles] = useState([]);
-  const [isRecording, setIsRecording] = useState(false);
-  const [recordingType, setRecordingType] = useState(null);
-  const [mediaRecorder, setMediaRecorder] = useState(null);
-  const videoRef = useRef(null);
+  const { t } = useTranslation()
+  const { userId } = useAuth()
+  const toast = useToast()
 
-  useEffect(() => {
-    if (user) {
-      loadDoctors();
-      loadUserAppointments();
-    }
-  }, []);
+  const [doctorsBySpecialty, setDoctorsBySpecialty] = useState({})
+  const [selectedDoctor, setSelectedDoctor] = useState(doctorFromProps || null)
+  const [appointmentDate, setAppointmentDate] = useState('')
+  const [symptoms, setSymptoms] = useState('')
+  const [consultationType, setConsultationType] = useState('video')
+  const [errors, setErrors] = useState({})
 
-  // Handle doctor from props
-  useEffect(() => {
-    if (doctorFromProps && doctors.length > 0) {
-      const doctor = doctors.find(d => d._id === doctorFromProps._id);
-      if (doctor) {
-        setSelectedDoctor(doctor);
-      }
-    }
-  }, [doctorFromProps, doctors]);
+  const [appointments, setAppointments] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [uploadPercent, setUploadPercent] = useState(null)
+  const [cancelTarget, setCancelTarget] = useState(null)
+  const [cancelling, setCancelling] = useState(false)
 
-  const loadDoctors = async () => {
+  const [mediaFiles, setMediaFiles] = useState([])
+  const [isRecording, setIsRecording] = useState(false)
+  const [recordingType, setRecordingType] = useState(null)
+  const recorderRef = useRef(null)
+  const streamRef = useRef(null)
+  const videoRef = useRef(null)
+  const abortRef = useRef(null)
+
+  const load = useCallback(async () => {
+    setLoadError(false)
     try {
-      const response = await api.get('/users/doctors/specialization');
-      // Convert grouped doctors to flat array
-      const doctorsList = Object.values(response.data).flat();
-      setDoctors(doctorsList);
-    } catch (error) {
-      setMessage({ text: 'Error loading doctors', type: 'error' });
-      console.error('Error loading doctors:', error);
+      const [doctorsRes, appointmentsRes] = await Promise.all([
+        api.get('/users/doctors/specialization'),
+        api.get(`/appointments/patient/${userId}`)
+      ])
+      setDoctorsBySpecialty(doctorsRes.data || {})
+      setAppointments(appointmentsRes.data || [])
+    } catch (err) {
+      console.error('Failed to load booking data:', err)
+      setLoadError(true)
+    } finally {
+      setLoading(false)
     }
-  };
+  }, [userId])
 
-  const loadUserAppointments = async () => {
-    try {
-      const userId = user.id || user._id;
-      const { data } = await api.get(`/appointments/patient/${userId}`);
-      setUserAppointments(data);
-    } catch (error) {
-      console.error('Error loading appointments:', error);
+  useEffect(() => { if (userId) load() }, [userId, load])
+
+  useEffect(() => { if (doctorFromProps) setSelectedDoctor(doctorFromProps) }, [doctorFromProps])
+
+  // Always release camera and microphone, even if the user navigates away
+  // mid-recording.
+  useEffect(() => () => {
+    streamRef.current?.getTracks().forEach(track => track.stop())
+    abortRef.current?.abort()
+  }, [])
+
+  const addFiles = (incoming) => {
+    const room = MAX_FILES - mediaFiles.length
+    if (room <= 0) {
+      toast.warning(t('appointments.attachmentsHint'))
+      return
     }
-  };
-
-  const handleDoctorSelect = (doctor) => {
-    setSelectedDoctor(doctor);
-  };
-
-  // File upload handling
-  const handleFileSelect = (event) => {
-    const files = Array.from(event.target.files);
-    const validFiles = files.filter(file => {
-      const isVideo = file.type.startsWith('video/');
-      const isAudio = file.type.startsWith('audio/');
-      const isValidSize = file.size <= 50 * 1024 * 1024; // 50MB limit
-      
-      if (!isVideo && !isAudio) {
-        setMessage({ text: 'Only video and audio files are allowed', type: 'error' });
-        return false;
+    const accepted = []
+    for (const file of incoming.slice(0, room)) {
+      if (!file.type.startsWith('video/') && !file.type.startsWith('audio/')) continue
+      if (file.size > MAX_BYTES) {
+        toast.error(t('appointments.attachmentsHint'))
+        continue
       }
-      
-      if (!isValidSize) {
-        setMessage({ text: 'File size must be less than 50MB', type: 'error' });
-        return false;
-      }
-      
-      return true;
-    });
+      accepted.push(file)
+    }
+    if (accepted.length) setMediaFiles(prev => [...prev, ...accepted])
+  }
 
-    setMediaFiles(prev => [...prev, ...validFiles]);
-  };
-
-  const removeFile = (index) => {
-    setMediaFiles(prev => prev.filter((_, i) => i !== index));
-  };
-
-  // Recording functionality
   const startRecording = async (type) => {
     try {
-      const constraints = type === 'video' 
-        ? { video: true, audio: true }
-        : { audio: true };
-
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      
-      if (type === 'video' && videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
+      const stream = await navigator.mediaDevices.getUserMedia(
+        type === 'video' ? { video: true, audio: true } : { audio: true }
+      )
+      streamRef.current = stream
+      if (type === 'video' && videoRef.current) videoRef.current.srcObject = stream
 
       const recorder = new MediaRecorder(stream, {
         mimeType: type === 'video' ? 'video/webm' : 'audio/webm'
-      });
-
-      const chunks = [];
-      
-      recorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          chunks.push(event.data);
-        }
-      };
-
+      })
+      const chunks = []
+      recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data) }
       recorder.onstop = () => {
-        const blob = new Blob(chunks, { 
-          type: type === 'video' ? 'video/webm' : 'audio/webm' 
-        });
-        
-        const file = new File([blob], `recorded-${type}-${Date.now()}.webm`, {
-          type: blob.type
-        });
-        
-        setMediaFiles(prev => [...prev, file]);
-        
-        // Stop all tracks
-        stream.getTracks().forEach(track => track.stop());
-        if (videoRef.current) {
-          videoRef.current.srcObject = null;
-        }
-      };
-
-      recorder.start();
-      setMediaRecorder(recorder);
-      setIsRecording(true);
-      setRecordingType(type);
-      setMessage({ text: `Recording ${type}... Click stop when done.`, type: 'success' });
-    } catch (error) {
-      console.error('Error starting recording:', error);
-      setMessage({ text: 'Error accessing camera/microphone', type: 'error' });
+        const blob = new Blob(chunks, { type: type === 'video' ? 'video/webm' : 'audio/webm' })
+        addFiles([new File([blob], `recording-${type}-${Date.now()}.webm`, { type: blob.type })])
+        stream.getTracks().forEach(track => track.stop())
+        streamRef.current = null
+        if (videoRef.current) videoRef.current.srcObject = null
+      }
+      recorder.start()
+      recorderRef.current = recorder
+      setIsRecording(true)
+      setRecordingType(type)
+    } catch (err) {
+      console.error('Recording failed to start:', err)
+      toast.error(t('consultation.errors.permission'))
     }
-  };
+  }
 
   const stopRecording = () => {
-    if (mediaRecorder && isRecording) {
-      mediaRecorder.stop();
-      setIsRecording(false);
-      setRecordingType(null);
-      setMediaRecorder(null);
-      setMessage({ text: 'Recording saved!', type: 'success' });
-    }
-  };
+    recorderRef.current?.stop()
+    recorderRef.current = null
+    setIsRecording(false)
+    setRecordingType(null)
+  }
 
-  const formatFileSize = (bytes) => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
+  const validate = () => {
+    const next = {}
+    if (!selectedDoctor) next.doctor = t('appointments.noDoctorSelected')
+    if (!appointmentDate) next.date = t('common.required')
+    setErrors(next)
+    return Object.keys(next).length === 0
+  }
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    if (!selectedDoctor || !appointmentDate) {
-      setMessage({ text: 'Please select a doctor and date', type: 'error' });
-      return;
-    }
+  const submit = async (e) => {
+    e.preventDefault()
+    if (!validate()) return
 
-    setLoading(true);
+    setSubmitting(true)
+    setUploadPercent(mediaFiles.length ? 0 : null)
+    abortRef.current = new AbortController()
+
     try {
-      const userId = user.id || user._id;
-      console.log('Submitting appointment with media files:', mediaFiles.length);
-      
-      const formData = new FormData();
-      
-      // Add basic appointment data
-      formData.append('patientId', userId);
-      formData.append('doctorId', selectedDoctor._id);
-      formData.append('requestedDate', appointmentDate);
-      formData.append('symptoms', symptoms);
-      formData.append('consultationType', consultationType);
-      
-      // Add media files
-      mediaFiles.forEach((file, index) => {
-        console.log(`Adding file ${index + 1}:`, file.name, file.type, file.size);
-        formData.append('attachments', file);
-      });
+      const formData = new FormData()
+      formData.append('patientId', userId)
+      formData.append('doctorId', selectedDoctor._id)
+      formData.append('requestedDate', appointmentDate)
+      formData.append('symptoms', symptoms)
+      formData.append('consultationType', consultationType)
+      mediaFiles.forEach(file => formData.append('attachments', file))
 
-      // Debug: Log FormData contents
-      console.log('FormData contents:');
-      for (let [key, value] of formData.entries()) {
-        console.log(key, typeof value === 'object' && value.name ? `File: ${value.name}` : value);
-      }
+      await api.post('/appointments/book', formData, {
+        signal: abortRef.current.signal,
+        // The feature exists for people on slow connections — they need to
+        // see it moving, or they assume it froze and upload again.
+        onUploadProgress: (event) => {
+          if (!mediaFiles.length || !event.total) return
+          setUploadPercent(Math.round((event.loaded * 100) / event.total))
+        }
+      })
 
-      const response = await api.post('/appointments/book', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-      
-      console.log('Appointment booking response:', response.data);
-      setMessage({ 
-        text: 'Appointment request submitted successfully! The doctor will review and confirm your appointment.', 
-        type: 'success' 
-      });
-      
-      // Reset form
-      setAppointmentDate('');
-      setSymptoms('');
-      setSelectedDoctor(null);
-      setMediaFiles([]);
-      
-      // Reload appointments
-      loadUserAppointments();
-    } catch (error) {
-      console.error('Error booking appointment:', error);
-      setMessage({ 
-        text: error.response?.data?.message || 'Error submitting appointment request', 
-        type: 'error' 
-      });
+      toast.success(t('appointments.requestSent'))
+      setAppointmentDate('')
+      setSymptoms('')
+      setSelectedDoctor(null)
+      setMediaFiles([])
+      load()
+    } catch (err) {
+      if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return
+      console.error('Booking failed:', err)
+      toast.error(friendlyError(err))
     } finally {
-      setLoading(false);
+      setSubmitting(false)
+      setUploadPercent(null)
+      abortRef.current = null
     }
-  };
+  }
 
-  const formatDate = (dateString) => {
-    if (!dateString) return 'Not set';
-    const options = { year: 'numeric', month: 'long', day: 'numeric' };
-    return new Date(dateString).toLocaleDateString(undefined, options);
-  };
-
-  const getStatusInfo = (appointment) => {
-    switch (appointment.status) {
-      case 'pending':
-        return {
-          text: 'Under Review',
-          class: 'bg-yellow-100 text-yellow-800',
-          icon: '⏳'
-        };
-      case 'confirmed':
-        return {
-          text: 'Confirmed',
-          class: 'bg-green-100 text-green-800',
-          icon: '✅'
-        };
-      case 'rejected':
-        return {
-          text: 'Rejected',
-          class: 'bg-red-100 text-red-800',
-          icon: '❌'
-        };
-      case 'completed':
-        return {
-          text: 'Completed',
-          class: 'bg-blue-100 text-blue-800',
-          icon: '✓'
-        };
-      case 'cancelled':
-        return {
-          text: 'Cancelled',
-          class: 'bg-gray-100 text-gray-800',
-          icon: '🚫'
-        };
-      default:
-        return {
-          text: appointment.status,
-          class: 'bg-gray-100 text-gray-800',
-          icon: '❓'
-        };
+  const cancelAppointment = async () => {
+    setCancelling(true)
+    try {
+      await api.put(`/appointments/${cancelTarget._id}/cancel`)
+      toast.success(t('appointments.cancelled'))
+      setCancelTarget(null)
+      load()
+    } catch (err) {
+      console.error('Cancel failed:', err)
+      toast.error(friendlyError(err))
+    } finally {
+      setCancelling(false)
     }
-  };
+  }
+
+  const today = new Date().toISOString().split('T')[0]
 
   return (
-    <div className="space-y-6">
-      {message.text && (
-        <div className={`p-4 rounded ${message.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-          {message.text}
-        </div>
-      )}
-
-      <div className="card">
-        <div className="card-body">
-          <div className="section-title mb-4">📅 Book an Appointment</div>
-          <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="flex flex-col gap-6">
+      <Card>
+        <CardHeader>
+          <h2 className="section-title">{t('appointments.book')}</h2>
+        </CardHeader>
+        <CardBody>
+          <form onSubmit={submit} noValidate className="flex flex-col gap-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Select Doctor</label>
-              <div className="grid md:grid-cols-2 gap-2">
-                {doctors.map(doctor => (
-                  <div 
-                    key={doctor._id} 
-                    onClick={() => handleDoctorSelect(doctor)}
-                    className={`p-3 border rounded-lg cursor-pointer ${selectedDoctor && selectedDoctor._id === doctor._id ? 'border-blue-500 bg-blue-50' : 'hover:bg-gray-50'}`}
-                  >
-                    <div className="font-medium">{doctor.name}</div>
-                    <div className="text-sm text-gray-500">{doctor.specialization || 'General Physician'}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="grid md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Preferred Date</label>
-                <input 
-                  type="date" 
-                  value={appointmentDate}
-                  onChange={(e) => setAppointmentDate(e.target.value)}
-                  className="w-full p-2 border rounded"
-                  min={new Date().toISOString().split('T')[0]}
+              <h3 className="label mb-2.5">{t('appointments.selectDoctor')}</h3>
+              {loading ? (
+                <div className="grid gap-2.5 sm:grid-cols-2">
+                  {Array.from({ length: 4 }).map((_, i) => <div key={i} className="skeleton h-20 rounded-card" />)}
+                </div>
+              ) : (
+                <DoctorPicker
+                  doctorsBySpecialty={doctorsBySpecialty}
+                  selected={selectedDoctor}
+                  onSelect={(d) => { setSelectedDoctor(d); setErrors(e => ({ ...e, doctor: undefined })) }}
                 />
-                <p className="text-xs text-gray-500 mt-1">The doctor will assign a specific time slot</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Consultation Type</label>
-                <select
-                  value={consultationType}
-                  onChange={(e) => setConsultationType(e.target.value)}
-                  className="w-full p-2 border rounded"
-                >
-                  <option value="video">Video Call</option>
-                  <option value="chat">Chat</option>
-                </select>
-              </div>
+              )}
+              {errors.doctor && <p className="error-text mt-2" role="alert">{errors.doctor}</p>}
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Symptoms (Optional)</label>
-              <textarea
-                value={symptoms}
-                onChange={(e) => setSymptoms(e.target.value)}
-                className="w-full p-2 border rounded"
-                rows="3"
-                placeholder="Describe your symptoms..."
-              />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field
+                label={t('appointments.preferredDate')}
+                hint={t('appointments.preferredDateHint')}
+                error={errors.date}
+                required
+              >
+                {(props) => (
+                  <Input
+                    {...props} type="date" min={today} value={appointmentDate} error={errors.date}
+                    onChange={(e) => { setAppointmentDate(e.target.value); setErrors(err => ({ ...err, date: undefined })) }}
+                  />
+                )}
+              </Field>
+              <Field label={t('appointments.consultationType')}>
+                {(props) => (
+                  <Select {...props} value={consultationType} onChange={(e) => setConsultationType(e.target.value)}>
+                    <option value="video">{t('appointments.video')}</option>
+                    <option value="chat">{t('appointments.chat')}</option>
+                  </Select>
+                )}
+              </Field>
             </div>
 
-            {/* Media Upload Section */}
-            <div className="border-t pt-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                📹 Media Attachments (Optional)
-              </label>
-              <p className="text-xs text-gray-500 mb-3">
-                You can upload video or audio files, or record them directly to help the doctor understand your condition better.
-              </p>
+            <Field label={t('appointments.symptoms')}>
+              {(props) => (
+                <Textarea
+                  {...props} rows="3" placeholder={t('appointments.symptomsPlaceholder')}
+                  value={symptoms} onChange={(e) => setSymptoms(e.target.value)}
+                />
+              )}
+            </Field>
 
-              {/* Recording Controls */}
-              <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-                <div className="flex flex-wrap gap-2 mb-3">
-                  <button
-                    type="button"
-                    onClick={() => startRecording('video')}
-                    disabled={isRecording}
-                    className="btn-secondary text-sm"
-                  >
-                    📹 Record Video
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => startRecording('audio')}
-                    disabled={isRecording}
-                    className="btn-secondary text-sm"
-                  >
-                    🎙️ Record Audio
-                  </button>
-                  {isRecording && (
-                    <button
-                      type="button"
-                      onClick={stopRecording}
-                      className="btn-primary text-sm bg-red-500 hover:bg-red-600"
-                    >
-                      ⏹️ Stop Recording
-                    </button>
+            <fieldset className="border-t border-line-soft pt-5">
+              <legend className="sr-only">{t('appointments.attachments')}</legend>
+              <h3 className="label mb-1">{t('appointments.attachments')}</h3>
+              <p className="hint mb-3">{t('appointments.attachmentsHint')}</p>
+
+              <div className="flex flex-wrap gap-2 mb-3">
+                {!isRecording ? (
+                  <>
+                    <Button type="button" variant="secondary" size="sm" onClick={() => startRecording('video')}
+                      disabled={mediaFiles.length >= MAX_FILES}>
+                      {t('appointments.recordVideo')}
+                    </Button>
+                    <Button type="button" variant="secondary" size="sm" onClick={() => startRecording('audio')}
+                      disabled={mediaFiles.length >= MAX_FILES}>
+                      {t('appointments.recordAudio')}
+                    </Button>
+                  </>
+                ) : (
+                  <Button type="button" variant="danger" size="sm" onClick={stopRecording}>
+                    {t('appointments.stopRecording')}
+                  </Button>
+                )}
+              </div>
+
+              {isRecording && (
+                <div className="mb-3" role="status">
+                  <p className="flex items-center gap-2 text-small text-danger-500 font-medium mb-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-danger-500 animate-pulse" aria-hidden="true" />
+                    {recordingType === 'video' ? t('appointments.recordingVideo') : t('appointments.recordingAudio')}
+                  </p>
+                  {recordingType === 'video' && (
+                    <video ref={videoRef} autoPlay muted playsInline
+                      className="w-full max-w-xs rounded-control bg-ink aspect-video" />
                   )}
                 </div>
+              )}
 
-                {/* Video preview during recording */}
-                {isRecording && recordingType === 'video' && (
-                  <div className="mb-3">
-                    <p className="text-sm text-green-600 mb-2">🔴 Recording video...</p>
-                    <video ref={videoRef} autoPlay muted playsInline className="w-full max-w-sm h-40 bg-black rounded border" />
-                  </div>
-                )}
-                
-                {/* Audio recording indicator */}
-                {isRecording && recordingType === 'audio' && (
-                  <div className="mb-3 text-center">
-                    <p className="text-sm text-green-600 mb-2">🔴 Recording audio...</p>
-                    <div className="inline-flex items-center px-4 py-2 bg-red-100 rounded-full">
-                      <div className="animate-pulse w-3 h-3 bg-red-500 rounded-full mr-2"></div>
-                      <span className="text-red-700 text-sm font-medium">Audio Recording</span>
-                    </div>
-                  </div>
-                )}
+              <input
+                type="file" multiple accept="video/*,audio/*" disabled={isRecording || mediaFiles.length >= MAX_FILES}
+                onChange={(e) => { addFiles(Array.from(e.target.files)); e.target.value = '' }}
+                aria-label={t('appointments.chooseFiles')}
+                className="block w-full text-small text-muted
+                           file:mr-3 file:py-2.5 file:px-4 file:rounded-control file:border file:border-line
+                           file:text-small file:font-medium file:bg-surface-2 file:text-ink
+                           hover:file:bg-line-soft file:cursor-pointer"
+              />
 
-                {/* File upload */}
-                <div>
-                  <input
-                    type="file"
-                    multiple
-                    accept="video/*,audio/*"
-                    onChange={handleFileSelect}
-                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                    disabled={isRecording}
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Max 5 files, 50MB each. Supported: MP4, MOV, AVI, WebM, MP3, WAV, M4A, OGG
-                  </p>
-                </div>
-              </div>
-
-              {/* Selected Files Display */}
               {mediaFiles.length > 0 && (
-                <div className="space-y-2">
-                  <h4 className="text-sm font-medium text-gray-700">Selected Files:</h4>
-                  {mediaFiles.map((file, index) => (
-                    <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                      <div className="flex items-center">
-                        <span className="mr-2">
-                          {file.type.startsWith('video') ? '📹' : '🎵'}
-                        </span>
-                        <div>
-                          <div className="text-sm font-medium">{file.name}</div>
-                          <div className="text-xs text-gray-500">
-                            {formatFileSize(file.size)} • {file.type}
-                          </div>
+                <ul className="mt-3 flex flex-col gap-2">
+                  {mediaFiles.map((file, i) => {
+                    const url = URL.createObjectURL(file)
+                    return (
+                      <li key={`${file.name}-${i}`} className="flex items-center gap-3 p-3 bg-surface-2 rounded-control">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-small font-medium text-ink truncate">{file.name}</p>
+                          <p className="text-caption text-muted tabular">{formatFileSize(file.size)}</p>
+                          {/* Playback before submitting — you couldn't check a
+                              recording before sending it to a doctor. */}
+                          {file.type.startsWith('audio') ? (
+                            <audio controls src={url} className="mt-2 w-full max-w-xs h-9" />
+                          ) : (
+                            <video controls src={url} className="mt-2 w-full max-w-[14rem] rounded" />
+                          )}
                         </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => removeFile(index)}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        ❌
-                      </button>
-                    </div>
-                  ))}
+                        <IconButton
+                          label={t('appointments.removeFile')}
+                          onClick={() => setMediaFiles(prev => prev.filter((_, idx) => idx !== i))}
+                        >
+                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                            <path strokeLinecap="round" d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </IconButton>
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
+            </fieldset>
+
+            {uploadPercent !== null && (
+              <div role="status" aria-live="polite">
+                <div className="flex justify-between text-small mb-1.5">
+                  <span className="text-ink font-medium">{t('appointments.uploading', { percent: uploadPercent })}</span>
+                  <span className="text-muted tabular">{uploadPercent}%</span>
                 </div>
+                <div className="h-2 bg-surface-2 rounded-full overflow-hidden">
+                  <div className="h-full bg-primary-600 transition-[width] duration-200" style={{ width: `${uploadPercent}%` }} />
+                </div>
+                <p className="hint mt-1.5">{t('appointments.uploadingHint')}</p>
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <Button type="submit" loading={submitting} disabled={isRecording} className="flex-1 sm:flex-none">
+                {submitting ? t('appointments.submitting') : t('appointments.submit')}
+              </Button>
+              {submitting && uploadPercent !== null && (
+                <Button type="button" variant="secondary" onClick={() => abortRef.current?.abort()}>
+                  {t('common.cancel')}
+                </Button>
               )}
             </div>
-
-            <button 
-              type="submit" 
-              className="btn-primary disabled:bg-gray-400 disabled:cursor-not-allowed w-full"
-              disabled={loading || isRecording}
-            >
-              {loading ? 'Submitting Request...' : 'Submit Appointment Request'}
-            </button>
           </form>
-        </div>
-      </div>
+        </CardBody>
+      </Card>
 
-      <div className="card">
-        <div className="card-body">
-          <div className="section-title mb-4">Your Appointments</div>
-          
-          {userAppointments.length === 0 ? (
-            <div className="text-center py-8">
-              <div className="text-gray-400 text-4xl mb-4">📅</div>
-              <p className="text-gray-500">You don't have any appointments yet.</p>
-              <p className="text-sm text-gray-400 mt-2">Book an appointment with a doctor to get started.</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {userAppointments.map(appointment => {
-                const statusInfo = getStatusInfo(appointment);
-                return (
-                  <div key={appointment._id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                    <div className="flex justify-between items-start mb-3">
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-lg text-slate-800">
-                          {appointment.doctorId?.name || 'Unknown Doctor'}
-                        </h3>
-                        <p className="text-blue-600 font-medium">
-                          {appointment.doctorId?.specialization || 'General Physician'}
-                        </p>
-                      </div>
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusInfo.class}`}>
-                        {statusInfo.icon} {statusInfo.text}
-                      </span>
-                    </div>
-                    
-                    {/* Appointment Details Grid */}
-                    <div className="grid md:grid-cols-2 gap-4 mb-4">
-                      <div>
-                        <h4 className="text-sm font-medium text-gray-700 mb-2">Appointment Details</h4>
-                        <div className="space-y-2">
-                          <div className="flex justify-between">
-                            <span className="text-sm text-gray-500">Requested Date:</span>
-                            <span className="text-sm font-medium">{formatDate(appointment.requestedDate)}</span>
-                          </div>
-                          {appointment.confirmedDate && appointment.status === 'confirmed' && (
-                            <div className="flex justify-between">
-                              <span className="text-sm text-gray-500">Confirmed Date:</span>
-                              <span className="text-sm font-medium text-green-700">{formatDate(appointment.confirmedDate)}</span>
-                            </div>
-                          )}
-                          {appointment.timeSlot && (
-                            <div className="flex justify-between">
-                              <span className="text-sm text-gray-500">Time Slot:</span>
-                              <span className="text-sm font-medium text-green-700">{appointment.timeSlot}</span>
-                            </div>
-                          )}
-                          <div className="flex justify-between">
-                            <span className="text-sm text-gray-500">Type:</span>
-                            <span className="text-sm font-medium capitalize">{appointment.consultationType}</span>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      {appointment.symptoms && (
-                        <div>
-                          <h4 className="text-sm font-medium text-gray-700 mb-2">Symptoms/Notes</h4>
-                          <p className="text-sm text-gray-600 bg-gray-50 p-3 rounded">
-                            {appointment.symptoms}
-                          </p>
-                        </div>
-                      )}
-                      
-                      {appointment.rejectionReason && (
-                        <div className="md:col-span-2">
-                          <h4 className="text-sm font-medium text-red-700 mb-2">Rejection Reason</h4>
-                          <p className="text-sm text-red-600 bg-red-50 p-3 rounded">
-                            {appointment.rejectionReason}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                    
-                    {/* Action Buttons */}
-                    <div className="flex gap-2 pt-3 border-t">
-                      {appointment.status === 'confirmed' && (
-                        <button 
-                          onClick={() => onJoinRoom ? onJoinRoom(appointment._id) : null}
-                          className="btn-primary text-sm"
-                        >
-                          Join Consultation
-                        </button>
-                      )}
-                      
-                      {appointment.status === 'pending' && (
-                        <button 
-                          onClick={async () => {
-                            if (window.confirm('Are you sure you want to cancel this appointment request?')) {
-                              try {
-                                await api.put(`/appointments/${appointment._id}`, { status: 'cancelled' });
-                                loadUserAppointments();
-                                setMessage({ text: 'Appointment cancelled successfully', type: 'success' });
-                              } catch (error) {
-                                console.error('Error cancelling appointment:', error);
-                                setMessage({ text: 'Error cancelling appointment', type: 'error' });
-                              }
-                            }
-                          }}
-                          className="btn-secondary text-sm text-red-600 hover:bg-red-50"
-                        >
-                          Cancel Request
-                        </button>
-                      )}
-                      
-                      <div className="text-xs text-gray-500 ml-auto pt-2">
-                        Requested: {new Date(appointment.createdAt).toLocaleDateString()}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </div>
+      <section>
+        <h2 className="section-title mb-4">{t('appointments.yourAppointments')}</h2>
+        {loading ? (
+          <SkeletonList count={2} />
+        ) : loadError ? (
+          <Card><CardBody><ErrorState onRetry={load} retryLabel={t('common.retry')} /></CardBody></Card>
+        ) : appointments.length === 0 ? (
+          <Card>
+            <CardBody>
+              <EmptyState
+                icon={
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
+                    <rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" />
+                  </svg>
+                }
+                title={t('appointments.empty')}
+                message={t('appointments.emptyHelp')}
+              />
+            </CardBody>
+          </Card>
+        ) : (
+          <div className="flex flex-col gap-4">
+            {appointments.map(appointment => (
+              <AppointmentCard
+                key={appointment._id}
+                appointment={appointment}
+                perspective="patient"
+                actions={
+                  <>
+                    {appointment.status === 'confirmed' && onJoinRoom && (
+                      <Button size="sm" onClick={() => onJoinRoom(appointment._id)}>
+                        {t('appointments.joinConsultation')}
+                      </Button>
+                    )}
+                    {['pending', 'confirmed'].includes(appointment.status) && (
+                      <Button variant="ghost" size="sm" className="text-danger-500"
+                        onClick={() => setCancelTarget(appointment)}>
+                        {t('appointments.cancelRequest')}
+                      </Button>
+                    )}
+                  </>
+                }
+              />
+            ))}
+          </div>
+        )}
+      </section>
+
+      <ConfirmDialog
+        open={Boolean(cancelTarget)}
+        onClose={() => setCancelTarget(null)}
+        onConfirm={cancelAppointment}
+        loading={cancelling}
+        title={t('appointments.cancelTitle')}
+        message={t('appointments.cancelMessage')}
+        confirmLabel={t('appointments.cancelConfirm')}
+        cancelLabel={t('appointments.cancelKeep')}
+      />
     </div>
-  );
+  )
 }

@@ -1,215 +1,136 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
-import Dashboard from '../components/Dashboard'
+import { useTranslation } from 'react-i18next'
 import api from '../services/api'
+import PageLayout from '../components/PageLayout'
+import Card, { CardBody } from '../components/ui/Card'
+import Badge from '../components/ui/Badge'
+import Button from '../components/ui/Button'
+import { Field, Input } from '../components/ui/Field'
+import { SkeletonGrid } from '../components/ui/Skeleton'
+import { EmptyState, ErrorState } from '../components/ui/States'
 
 export default function PharmacyPage() {
+  const { t } = useTranslation()
   const [pharmacies, setPharmacies] = useState([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [locationFilter, setLocationFilter] = useState('')
 
-  useEffect(() => {
-    fetchPharmacies()
-  }, [])
-
-  const fetchPharmacies = async () => {
+  const load = useCallback(async (params = {}) => {
+    setLoading(true)
+    setLoadError(false)
     try {
-      setLoading(true)
-      const params = {}
-      if (searchTerm) params.search = searchTerm
-      if (locationFilter) params.location = locationFilter
-      
       const { data } = await api.get('/pharmacy/all', { params })
-      setPharmacies(data)
-    } catch (error) {
-      console.error('Error fetching pharmacies:', error)
+      setPharmacies(data || [])
+    } catch (err) {
+      console.error('Failed to load pharmacies:', err)
+      setLoadError(true)
     } finally {
       setLoading(false)
     }
+  }, [])
+
+  useEffect(() => { load() }, [load])
+
+  const search = (e) => {
+    e.preventDefault()
+    const params = {}
+    if (searchTerm) params.search = searchTerm
+    if (locationFilter) params.location = locationFilter
+    load(params)
   }
 
-  const handleSearch = () => {
-    fetchPharmacies()
-  }
-
-  const clearFilters = () => {
+  const clear = () => {
     setSearchTerm('')
     setLocationFilter('')
-    fetchPharmacies()
-  }
-
-  const getRatingDisplay = (ratings) => {
-    if (ratings.count === 0) return 'No ratings yet'
-    return `${ratings.average.toFixed(1)} ⭐ (${ratings.count} reviews)`
-  }
-
-  const getDeliveryBadge = (deliveryAvailable) => {
-    return deliveryAvailable ? (
-      <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">
-        Delivery Available
-      </span>
-    ) : (
-      <span className="px-2 py-1 text-xs bg-gray-100 text-gray-800 rounded-full">
-        Pickup Only
-      </span>
-    )
-  }
-
-  if (loading) {
-    return (
-      <Dashboard title="Find Pharmacies">
-        <div className="flex justify-center items-center h-64">
-          <div className="text-lg">Loading pharmacies...</div>
-        </div>
-      </Dashboard>
-    )
+    load()
   }
 
   return (
-    <Dashboard title="Find Pharmacies">
-      {/* Search and Filters */}
-      <div className="card mb-6">
-        <div className="card-body">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <input
-              className="input"
-              placeholder="Search pharmacies..."
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              onKeyPress={e => e.key === 'Enter' && handleSearch()}
-            />
-            <input
-              className="input"
-              placeholder="Filter by location..."
-              value={locationFilter}
-              onChange={e => setLocationFilter(e.target.value)}
-              onKeyPress={e => e.key === 'Enter' && handleSearch()}
-            />
+    <PageLayout title={t('pharmacy.title')} description={t('pharmacy.subtitle')}>
+      <Card className="mb-6">
+        <CardBody>
+          <form onSubmit={search} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_auto] lg:items-end">
+            <Field label={t('common.search')}>
+              {(props) => (
+                <Input {...props} type="search" placeholder={t('pharmacy.searchPlaceholder')}
+                  value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+              )}
+            </Field>
+            <Field label={t('common.filter')}>
+              {(props) => (
+                <Input {...props} type="search" placeholder={t('pharmacy.locationPlaceholder')}
+                  value={locationFilter} onChange={(e) => setLocationFilter(e.target.value)} />
+              )}
+            </Field>
             <div className="flex gap-2">
-              <button onClick={handleSearch} className="btn-primary">
-                Search
-              </button>
-              <button onClick={clearFilters} className="btn-secondary">
-                Clear
-              </button>
+              <Button type="submit" className="flex-1 lg:flex-none">{t('common.search')}</Button>
+              <Button type="button" variant="secondary" onClick={clear}>{t('common.clear')}</Button>
             </div>
-          </div>
-        </div>
-      </div>
+          </form>
+        </CardBody>
+      </Card>
 
-      {/* Pharmacies Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {pharmacies.map(pharmacy => (
-          <Link
-            key={pharmacy._id}
-            to={`/pharmacy-shop/${pharmacy._id}`}
-            className="block hover:shadow-lg transition-shadow"
-          >
-            <div className="card h-full">
-              <div className="card-body">
-                {/* Pharmacy Image Placeholder */}
-                <div className="w-full h-40 bg-gradient-to-br from-blue-100 to-blue-200 rounded-lg mb-4 flex items-center justify-center">
-                  {pharmacy.image ? (
-                    <img 
-                      src={pharmacy.image} 
-                      alt={pharmacy.name}
-                      className="w-full h-full object-cover rounded-lg"
-                    />
-                  ) : (
-                    <div className="text-4xl">🏥</div>
-                  )}
-                </div>
-
-                {/* Pharmacy Info */}
-                <div className="space-y-2">
-                  <div className="flex justify-between items-start">
-                    <h3 className="font-semibold text-lg">{pharmacy.name}</h3>
-                    {getDeliveryBadge(pharmacy.deliveryAvailable)}
-                  </div>
-                  
-                  <div className="text-gray-600 text-sm">
-                    📍 {pharmacy.location}
-                  </div>
-                  
-                  <div className="text-gray-600 text-sm">
-                    📞 {pharmacy.contact}
-                  </div>
-
-                  {pharmacy.description && (
-                    <div className="text-gray-600 text-sm">
-                      {pharmacy.description.length > 100 
-                        ? `${pharmacy.description.substring(0, 100)}...`
-                        : pharmacy.description
-                      }
-                    </div>
-                  )}
-
-                  <div className="flex justify-between items-center pt-2 border-t">
-                    <div className="text-sm text-gray-600">
-                      {getRatingDisplay(pharmacy.ratings)}
-                    </div>
-                    <div className="text-sm text-gray-600">
-                      {pharmacy.openingHours?.open} - {pharmacy.openingHours?.close}
-                    </div>
-                  </div>
-
-                  <div className="pt-2">
-                    <span className="text-blue-600 text-sm font-medium hover:underline">
-                      View Medicines →
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </Link>
-        ))}
-      </div>
-
-      {pharmacies.length === 0 && (
-        <div className="text-center py-12">
-          <div className="text-gray-500 text-lg mb-2">No pharmacies found</div>
-          <div className="text-gray-400">
-            {searchTerm || locationFilter 
-              ? 'Try adjusting your search criteria'
-              : 'No pharmacies are currently registered'
+      {loading ? (
+        <SkeletonGrid count={6} />
+      ) : loadError ? (
+        <Card><CardBody>
+          <ErrorState title={t('pharmacy.loadError')} onRetry={() => load()} retryLabel={t('common.retry')} />
+        </CardBody></Card>
+      ) : pharmacies.length === 0 ? (
+        <Card><CardBody>
+          <EmptyState
+            icon={
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 20.5l10-10a5 5 0 00-7-7l-10 10a5 5 0 007 7zM8.5 8.5l7 7" />
+              </svg>
             }
-          </div>
+            title={t('pharmacy.empty')}
+            message={t('pharmacy.emptyHelp')}
+            action={(searchTerm || locationFilter) && <Button variant="secondary" onClick={clear}>{t('common.clear')}</Button>}
+          />
+        </CardBody></Card>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {pharmacies.map(pharmacy => (
+            <Card key={pharmacy._id} interactive className="h-full">
+              <Link to={`/pharmacy-shop/${pharmacy._id}`} className="card-body flex flex-col h-full no-underline">
+                <div className="flex items-start justify-between gap-3 mb-3">
+                  <h2 className="card-title min-w-0">{pharmacy.name}</h2>
+                  <Badge tone={pharmacy.deliveryAvailable ? 'success' : 'neutral'}>
+                    {pharmacy.deliveryAvailable ? t('pharmacy.delivery') : t('pharmacy.pickup')}
+                  </Badge>
+                </div>
+
+                <dl className="text-small text-body space-y-1.5 mb-4 flex-1">
+                  <div className="flex gap-2">
+                    <dt className="sr-only">{t('common.status')}</dt>
+                    <dd className="text-muted">{pharmacy.location}</dd>
+                  </div>
+                  {pharmacy.contact && (
+                    <div className="flex gap-2">
+                      <dt className="sr-only">{t('common.phone')}</dt>
+                      <dd className="text-muted tabular">{pharmacy.contact}</dd>
+                    </div>
+                  )}
+                  {pharmacy.description && (
+                    <p className="text-muted line-clamp-2 pt-1">{pharmacy.description}</p>
+                  )}
+                </dl>
+
+                <div className="flex items-center justify-between gap-3 pt-3 border-t border-line-soft text-caption text-muted">
+                  <span className="tabular">
+                    {pharmacy.openingHours?.open} – {pharmacy.openingHours?.close}
+                  </span>
+                  <span className="text-primary-600 font-medium">{t('pharmacy.shopNow')} →</span>
+                </div>
+              </Link>
+            </Card>
+          ))}
         </div>
       )}
-
-      {/* Info Section */}
-      <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="card">
-          <div className="card-body text-center">
-            <div className="text-3xl mb-2">🚚</div>
-            <h4 className="font-semibold mb-2">Fast Delivery</h4>
-            <p className="text-sm text-gray-600">
-              Get your medicines delivered quickly to your doorstep
-            </p>
-          </div>
-        </div>
-        
-        <div className="card">
-          <div className="card-body text-center">
-            <div className="text-3xl mb-2">💊</div>
-            <h4 className="font-semibold mb-2">Genuine Medicines</h4>
-            <p className="text-sm text-gray-600">
-              All medicines are sourced from verified pharmacy partners
-            </p>
-          </div>
-        </div>
-        
-        <div className="card">
-          <div className="card-body text-center">
-            <div className="text-3xl mb-2">📱</div>
-            <h4 className="font-semibold mb-2">Easy Ordering</h4>
-            <p className="text-sm text-gray-600">
-              Browse, order, and track your medicines with ease
-            </p>
-          </div>
-        </div>
-      </div>
-    </Dashboard>
+    </PageLayout>
   )
 }

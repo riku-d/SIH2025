@@ -1,13 +1,21 @@
 import React, { useEffect, useState } from 'react'
-import Dashboard from '../components/Dashboard'
-import api from '../services/api'
+import { useNavigate, useLocation } from 'react-router-dom'
+import PageLayout from '../components/PageLayout'
+import Tabs from '../components/ui/Tabs'
+import { useToast } from '../components/ui/Toast'
+import api, { friendlyError } from '../services/api'
 import { io } from 'socket.io-client'
 
 const SOCKET_URL = import.meta.env.VITE_SIGNAL_URL || 'http://localhost:5000'
 
 export default function PharmacyDashboard() {
+  const toast = useToast()
   const user = JSON.parse(localStorage.getItem('user') || 'null')
-  const [activeTab, setActiveTab] = useState('overview')
+  const navigate = useNavigate()
+  const location = useLocation()
+  const segment = location.pathname.replace(/^\/pharmacy\/?/, '').split('/')[0]
+  const activeTab = ['medicines', 'orders', 'profile'].includes(segment) ? segment : 'overview'
+  const setActiveTab = (tab) => navigate(tab === 'overview' ? '/pharmacy' : `/pharmacy/${tab}`)
   const [pharmacy, setPharmacy] = useState(null)
   const [medicines, setMedicines] = useState([])
   const [orders, setOrders] = useState([])
@@ -60,7 +68,7 @@ export default function PharmacyDashboard() {
     socket.on('new-order', (order) => {
       setOrders(prev => [order, ...prev])
       // Show notification
-      alert(`New order received: ${order.orderId}`)
+      toast.info(`New order received: ${order.orderId}`)
     })
     
     console.log('About to fetch pharmacy data...')
@@ -151,7 +159,7 @@ export default function PharmacyDashboard() {
     try {
       // Validate required fields
       if (!pharmacyForm.name || !pharmacyForm.location || !pharmacyForm.address || !pharmacyForm.contact) {
-        alert('Please fill in all required fields (marked with *)')
+        toast.warning('Please fill in all required fields (marked with *)')
         return
       }
       
@@ -159,23 +167,14 @@ export default function PharmacyDashboard() {
       const { data } = await api.post('/pharmacy/create', pharmacyForm)
       console.log('Pharmacy created:', data)
       setPharmacy(data)
-      alert('Pharmacy created successfully!')
+      toast.success('Pharmacy created successfully!')
       fetchPharmacyData()
     } catch (error) {
       console.error('Error creating pharmacy:', error)
       console.error('Error response:', error.response)
       
-      if (error.response) {
-        // Server responded with error status
-        const errorMsg = error.response.data?.message || `Server error: ${error.response.status}`
-        alert(`Error creating pharmacy: ${errorMsg}`)
-      } else if (error.request) {
-        // Request was made but no response received
-        alert('Error creating pharmacy: No response from server. Please check if the backend is running.')
-      } else {
-        // Something else happened
-        alert(`Error creating pharmacy: ${error.message}`)
-      }
+      // Detail is in the console above; the user gets a cause they can act on.
+      toast.error(friendlyError(error, "Your pharmacy profile couldn't be created. Please try again."))
     }
   }
 
@@ -183,9 +182,9 @@ export default function PharmacyDashboard() {
     try {
       const { data } = await api.put('/pharmacy/my/profile', pharmacyForm)
       setPharmacy(data)
-      alert('Pharmacy updated successfully!')
+      toast.success('Pharmacy updated successfully!')
     } catch (error) {
-      alert('Error updating pharmacy: ' + error.response?.data?.message)
+      toast.error(friendlyError(error))
     }
   }
 
@@ -202,10 +201,10 @@ export default function PharmacyDashboard() {
       
       if (editingMedicine) {
         await api.put(`/pharmacy/medicines/${editingMedicine._id}`, medicineData)
-        alert('Medicine updated successfully!')
+        toast.success('Medicine updated successfully!')
       } else {
         await api.post('/pharmacy/medicines', medicineData)
-        alert('Medicine added successfully!')
+        toast.success('Medicine added successfully!')
       }
       
       setShowMedicineForm(false)
@@ -213,7 +212,7 @@ export default function PharmacyDashboard() {
       resetMedicineForm()
       fetchPharmacyData()
     } catch (error) {
-      alert('Error saving medicine: ' + error.response?.data?.message)
+      toast.error(friendlyError(error))
     }
   }
 
@@ -221,10 +220,10 @@ export default function PharmacyDashboard() {
     if (confirm('Are you sure you want to delete this medicine?')) {
       try {
         await api.delete(`/pharmacy/medicines/${medicineId}`)
-        alert('Medicine deleted successfully!')
+        toast.success('Medicine deleted successfully!')
         fetchPharmacyData()
       } catch (error) {
-        alert('Error deleting medicine: ' + error.response?.data?.message)
+        toast.error(friendlyError(error))
       }
     }
   }
@@ -261,10 +260,10 @@ export default function PharmacyDashboard() {
   const updateOrderStatus = async (orderId, status) => {
     try {
       await api.put(`/pharmacy/orders/${orderId}/status`, { status })
-      alert('Order status updated successfully!')
+      toast.success('Order status updated successfully!')
       fetchPharmacyData()
     } catch (error) {
-      alert('Error updating order status: ' + error.response?.data?.message)
+      toast.error(friendlyError(error))
     }
   }
 
@@ -294,17 +293,17 @@ export default function PharmacyDashboard() {
 
   if (loading) {
     return (
-      <Dashboard title="Pharmacy Dashboard">
+      <PageLayout title="Pharmacy Dashboard">
         <div className="flex justify-center items-center h-64">
           <div className="text-lg">Loading...</div>
         </div>
-      </Dashboard>
+      </PageLayout>
     )
   }
 
   if (!pharmacy) {
     return (
-      <Dashboard title="Setup Your Pharmacy">
+      <PageLayout title="Setup Your Pharmacy">
         <div className="max-w-2xl mx-auto">
           <div className="card">
             <div className="card-body">
@@ -394,35 +393,24 @@ export default function PharmacyDashboard() {
             </div>
           </div>
         </div>
-      </Dashboard>
+      </PageLayout>
     )
   }
 
   return (
-    <Dashboard title={`${pharmacy.name} - Dashboard`}>
+    <PageLayout title={`${pharmacy.name} - Dashboard`}>
       {/* Tabs */}
-      <div className="border-b border-gray-200 mb-6">
-        <nav className="flex space-x-8">
-          {[
-            { id: 'overview', name: 'Overview' },
-            { id: 'medicines', name: 'Medicines' },
-            { id: 'orders', name: 'Orders' },
-            { id: 'profile', name: 'Profile' }
-          ].map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                activeTab === tab.id
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              {tab.name}
-            </button>
-          ))}
-        </nav>
-      </div>
+      <Tabs
+        className="mb-6"
+        active={activeTab}
+        onChange={setActiveTab}
+        items={[
+          { key: 'overview', label: 'Overview' },
+          { key: 'medicines', label: 'Medicines' },
+          { key: 'orders', label: 'Orders' },
+          { key: 'profile', label: 'Profile' }
+        ]}
+      />
 
       {/* Overview Tab */}
       {activeTab === 'overview' && (
@@ -856,7 +844,7 @@ export default function PharmacyDashboard() {
           </div>
         </div>
       )}
-    </Dashboard>
+    </PageLayout>
   )
 }
 
