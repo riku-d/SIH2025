@@ -4,6 +4,17 @@ import Cart from '../models/Cart.js';
 import Order from '../models/Order.js';
 
 // Pharmacy Management
+/**
+ * What the cart needs to know about a medicine.
+ *
+ * Defined once because it was written out at four call sites and only one of
+ * them was ever updated: prescriptionRequired was missing, so the checkout
+ * could not tell that the cart held a prescription-only medicine. The upload
+ * box never appeared, and the server then refused the order — leaving the
+ * patient no way to comply with a rule the app itself enforced.
+ */
+const CART_MEDICINE_FIELDS = 'medicineName brand price finalPrice quantity stockStatus image prescriptionRequired';
+
 export const createPharmacy = async (req, res) => {
     try {
         console.log('Creating pharmacy for user:', req.user);
@@ -275,7 +286,7 @@ export const getCart = async (req, res) => {
             .populate({
                 path: 'items.medicineId',
                 model: 'MedicineStock',
-                select: 'medicineName brand price finalPrice quantity stockStatus image'
+                select: CART_MEDICINE_FIELDS
             })
             .populate('pharmacyId', 'name location contact');
             
@@ -326,7 +337,7 @@ export const addToCart = async (req, res) => {
         await cart.populate({
             path: 'items.medicineId',
             model: 'MedicineStock',
-            select: 'medicineName brand price finalPrice quantity stockStatus image'
+            select: CART_MEDICINE_FIELDS
         });
         
         res.json(cart);
@@ -368,7 +379,7 @@ export const updateCartItem = async (req, res) => {
         await cart.populate({
             path: 'items.medicineId',
             model: 'MedicineStock',
-            select: 'medicineName brand price finalPrice quantity stockStatus image'
+            select: CART_MEDICINE_FIELDS
         });
         
         res.json(cart);
@@ -393,7 +404,7 @@ export const removeFromCart = async (req, res) => {
         await cart.populate({
             path: 'items.medicineId',
             model: 'MedicineStock',
-            select: 'medicineName brand price finalPrice quantity stockStatus image'
+            select: CART_MEDICINE_FIELDS
         });
         
         res.json(cart);
@@ -421,7 +432,7 @@ export const clearCart = async (req, res) => {
 // Order Management
 export const createOrder = async (req, res) => {
     try {
-        const { pharmacyId, orderType, deliveryAddress, notes } = req.body;
+        const { pharmacyId, orderType, deliveryAddress, notes, prescriptionImage } = req.body;
         
         // Get cart
         const cart = await Cart.findOne({ userId: req.user.id, pharmacyId })
@@ -468,6 +479,49 @@ export const createOrder = async (req, res) => {
             totalAmount += deliveryFee;
         }
         
+        /**
+         * Prescription-only medicines need a prescription.
+         *
+         * The order carried a prescriptionRequired flag and an empty
+         * prescriptionImage field that nothing ever filled, so antibiotics
+         * and other Schedule H drugs could be ordered with one tap and no
+         * prescription at all. The flag told the pharmacy to worry; it did
+         * not stop the order.
+         */
+        if (prescriptionRequired && !prescriptionImage) {
+            return res.status(400).json({
+                message: 'A photo of your prescription is needed for one or more of these medicines.',
+                code: 'prescription_required'
+            });
+        }
+
+        /**
+         * Reserve stock before the order exists, one medicine at a time and
+         * conditionally, so two people checking out the last strip cannot
+         * both pass the earlier check and drive the count negative.
+         */
+        const reserved = [];
+        for (const cartItem of cart.items) {
+            const taken = await MedicineStock.findOneAndUpdate(
+                { _id: cartItem.medicineId._id, quantity: { $gte: cartItem.quantity } },
+                { $inc: { quantity: -cartItem.quantity }, lastUpdated: new Date() },
+                { new: true }
+            );
+
+            if (!taken) {
+                // Someone got there first. Put back whatever we already took,
+                // so a failed checkout never quietly consumes stock.
+                for (const done of reserved) {
+                    await MedicineStock.findByIdAndUpdate(done.id, { $inc: { quantity: done.quantity } });
+                }
+                return res.status(409).json({
+                    message: `${cartItem.medicineId.medicineName} was just sold out. Please review your cart.`,
+                    code: 'out_of_stock'
+                });
+            }
+            reserved.push({ id: cartItem.medicineId._id, quantity: cartItem.quantity, remaining: taken.quantity });
+        }
+
         // Create order
         const order = new Order({
             userId: req.user.id,
@@ -478,26 +532,27 @@ export const createOrder = async (req, res) => {
             totalAmount,
             deliveryFee,
             prescriptionRequired,
+            prescriptionImage: prescriptionImage || '',
             notes
         });
-        
-        await order.save();
-        
-        // Update stock quantities
+
+        try {
+            await order.save();
+        } catch (err) {
+            // The order failed after stock was taken — release it again.
+            for (const done of reserved) {
+                await MedicineStock.findByIdAndUpdate(done.id, { $inc: { quantity: done.quantity } });
+            }
+            throw err;
+        }
+
         for (const cartItem of cart.items) {
-            await MedicineStock.findByIdAndUpdate(
-                cartItem.medicineId._id,
-                { 
-                    $inc: { quantity: -cartItem.quantity },
-                    lastUpdated: new Date()
-                }
-            );
             
             // Emit real-time stock update
             req.io.emit('stock-updated', { 
                 pharmacyId, 
                 medicineId: cartItem.medicineId._id,
-                newQuantity: cartItem.medicineId.quantity - cartItem.quantity
+                newQuantity: reserved.find(r => String(r.id) === String(cartItem.medicineId._id))?.remaining
             });
         }
         
@@ -562,6 +617,11 @@ export const getPharmacyOrders = async (req, res) => {
         
         const orders = await Order.find(query)
             .populate('userId', 'name email phone')
+            // The prescription photo is a base64 image. Ten of them in one
+            // page of orders is megabytes over a connection that can barely
+            // carry the list itself, and most orders do not have one — so it
+            // is fetched per order, only when the pharmacist opens it.
+            .select('-prescriptionImage')
             .sort({ createdAt: -1 })
             .limit(limit * 1)
             .skip((page - 1) * limit);
@@ -616,13 +676,17 @@ export const getOrderById = async (req, res) => {
         
         const order = await Order.findById(orderId)
             .populate('userId', 'name email phone')
-            .populate('pharmacyId', 'name location contact address');
-            
+            // ownerId was missing from this projection, so the access check
+            // below dereferenced undefined and threw — meaning a pharmacy
+            // could never open one of its own orders, only ever a 500.
+            .populate('pharmacyId', 'name location contact address ownerId');
+
         if (!order) return res.status(404).json({ message: 'Order not found' });
-        
-        // Check if user can access this order
-        if (order.userId._id.toString() !== req.user.id && 
-            order.pharmacyId.ownerId.toString() !== req.user.id) {
+
+        const isPatient = String(order.userId?._id) === String(req.user.id);
+        const isPharmacy = String(order.pharmacyId?.ownerId) === String(req.user.id);
+
+        if (!isPatient && !isPharmacy) {
             return res.status(403).json({ message: 'Access denied' });
         }
         

@@ -6,6 +6,7 @@ import { useToast } from '../ui/Toast'
 import Card, { CardBody } from '../ui/Card'
 import Button from '../ui/Button'
 import Modal from '../ui/Modal'
+import { SLOTS, slotLabel } from '../../lib/slots'
 import Tabs from '../ui/Tabs'
 import { Field, Input, Textarea, Select } from '../ui/Field'
 import { SkeletonList } from '../ui/Skeleton'
@@ -24,7 +25,7 @@ const TIME_SLOTS = [
  * requests, and working through today's confirmed schedule.
  */
 export default function DoctorAppointments({ mode = 'all', onJoinRoom }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { userId } = useAuth()
   const toast = useToast()
 
@@ -35,6 +36,7 @@ export default function DoctorAppointments({ mode = 'all', onJoinRoom }) {
   const [busy, setBusy] = useState(false)
 
   const [confirmTarget, setConfirmTarget] = useState(null)
+  const [acceptingId, setAcceptingId] = useState(null)
   const [confirmData, setConfirmData] = useState({ confirmedDate: '', timeSlot: '', doctorNotes: '' })
   const [declineTarget, setDeclineTarget] = useState(null)
   const [declineReason, setDeclineReason] = useState('')
@@ -66,12 +68,32 @@ export default function DoctorAppointments({ mode = 'all', onJoinRoom }) {
     return appointments.filter(a => a.status === filter)
   }, [appointments, mode, filter])
 
+  /**
+   * Confirms exactly what the patient asked for. The server fills the date
+   * and slot from the request when the body omits them, so there is nothing
+   * for the doctor to re-enter.
+   */
+  const acceptAsRequested = async (appointment) => {
+    setAcceptingId(appointment._id)
+    try {
+      await api.put(`/appointments/${appointment._id}/confirm`, {})
+      toast.success(t('appointments.confirmed'))
+      await load()
+      window.dispatchEvent(new CustomEvent('appointments:changed'))
+    } catch (err) {
+      toast.error(friendlyError(err))
+    } finally {
+      setAcceptingId(null)
+    }
+  }
+
   const confirm = async (e) => {
     e.preventDefault()
     setBusy(true)
     try {
       await api.put(`/appointments/${confirmTarget._id}/confirm`, confirmData)
       toast.success(t('appointments.confirmed'))
+      window.dispatchEvent(new CustomEvent('appointments:changed'))
       setConfirmTarget(null)
       load()
     } catch (err) {
@@ -87,6 +109,7 @@ export default function DoctorAppointments({ mode = 'all', onJoinRoom }) {
     setBusy(true)
     try {
       await api.put(`/appointments/${declineTarget._id}/reject`, { rejectionReason: declineReason })
+      window.dispatchEvent(new CustomEvent('appointments:changed'))
       toast.success(t('appointments.declined'))
       setDeclineTarget(null)
       setDeclineReason('')
@@ -137,18 +160,34 @@ export default function DoctorAppointments({ mode = 'all', onJoinRoom }) {
               <>
                 {appointment.status === 'pending' && (
                   <>
+                    {/* Accepting what was asked for is the overwhelmingly
+                        common case, so it is one tap. It used to open a modal
+                        and make the doctor retype the date and invent a time
+                        slot as free text — for a request that already carried
+                        both. Proposing a different time stays available, one
+                        step behind, where it belongs. */}
                     <Button
                       size="sm"
+                      loading={acceptingId === appointment._id}
+                      onClick={() => acceptAsRequested(appointment)}
+                    >
+                      {appointment.timeSlot
+                        ? t('appointments.acceptAt', { time: slotLabel(appointment.timeSlot, i18n.language) })
+                        : t('appointments.confirmAction')}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="secondary"
                       onClick={() => {
                         setConfirmTarget(appointment)
                         setConfirmData({
                           confirmedDate: (appointment.requestedDate || '').split('T')[0],
-                          timeSlot: '',
+                          timeSlot: appointment.timeSlot || '',
                           doctorNotes: ''
                         })
                       }}
                     >
-                      {t('appointments.confirmAction')}
+                      {t('appointments.suggestAnother')}
                     </Button>
                     <Button size="sm" variant="ghost" className="text-danger-500" onClick={() => setDeclineTarget(appointment)}>
                       {t('appointments.declineAction')}
@@ -191,12 +230,17 @@ export default function DoctorAppointments({ mode = 'all', onJoinRoom }) {
           </Field>
           <Field label={t('appointments.confirmSlot')} required>
             {(props) => (
+              /* Was a free-text box, so the same hour arrived as "3pm",
+                 "15:00" and "3-4 PM" — which made the double-booking check
+                 miss clashes, because two spellings never collide. */
               <Select
                 {...props} required value={confirmData.timeSlot}
                 onChange={(e) => setConfirmData(d => ({ ...d, timeSlot: e.target.value }))}
               >
                 <option value="">{t('appointments.chooseSlot')}</option>
-                {TIME_SLOTS.map(slot => <option key={slot} value={slot}>{slot}</option>)}
+                {SLOTS.map(slot => (
+                  <option key={slot} value={slot}>{slotLabel(slot, i18n.language)}</option>
+                ))}
               </Select>
             )}
           </Field>

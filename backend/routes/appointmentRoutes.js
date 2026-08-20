@@ -4,7 +4,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { authRequired } from '../middleware/authMiddleware.js';
 import { uploadAppointmentMedia, handleUploadErrors } from '../middleware/uploadMiddleware.js';
-import { bookAppointment, getAppointmentsForPatient, getAppointmentsForDoctor, confirmAppointment, rejectAppointment, completeAppointment, cancelAppointment } from '../controllers/appointmentController.js';
+import { bookAppointment, getAppointmentsForPatient, getAppointmentsForDoctor, confirmAppointment, rejectAppointment, completeAppointment, cancelAppointment, getDoctorAvailability } from '../controllers/appointmentController.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -14,6 +14,8 @@ const router = Router();
 router.post('/book', authRequired, uploadAppointmentMedia, handleUploadErrors, bookAppointment);
 router.get('/patient/:id', authRequired, getAppointmentsForPatient);
 router.get('/doctor/:id', authRequired, getAppointmentsForDoctor);
+// Free slots for a doctor on one day, so the patient picks a real time.
+router.get('/doctor/:doctorId/availability', authRequired, getDoctorAvailability);
 router.put('/:id/confirm', authRequired, confirmAppointment);
 router.put('/:id/reject', authRequired, rejectAppointment);
 router.put('/:id/complete', authRequired, completeAppointment);

@@ -1,9 +1,12 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import PageLayout from '../components/PageLayout'
 import { useToast } from '../components/ui/Toast'
 import api, { friendlyError } from '../services/api'
 import { Field, Input } from '../components/ui/Field'
+import Button from '../components/ui/Button'
+import { compressImage } from '../lib/compressImage'
+import { useTranslation } from 'react-i18next'
 
 export default function CheckoutPage() {
   const toast = useToast()
@@ -14,7 +17,11 @@ export default function CheckoutPage() {
   const [cart, setCart] = useState(null)
   const [pharmacy, setPharmacy] = useState(null)
   const [loading, setLoading] = useState(true)
+  const { t } = useTranslation()
   const [orderType, setOrderType] = useState('delivery')
+  const [prescriptionImage, setPrescriptionImage] = useState('')
+  const [attachingPrescription, setAttachingPrescription] = useState(false)
+  const prescriptionInputRef = useRef(null)
   const [deliveryAddress, setDeliveryAddress] = useState({
     name: user?.name || '',
     phone: user?.phone || '',
@@ -45,7 +52,7 @@ export default function CheckoutPage() {
       const { data: cartData } = await api.get(`/pharmacy/cart/${pharmacyId}`)
       if (!cartData || cartData.items?.length === 0) {
         toast.error('Your cart is empty!')
-        navigate(`/pharmacy-shop/${pharmacyId}`)
+        navigate(`/patient/medicine/${pharmacyId}`)
         return
       }
       setCart(cartData)
@@ -62,7 +69,7 @@ export default function CheckoutPage() {
     } catch (error) {
       console.error('Error fetching checkout data:', error)
       toast.error('Error loading checkout data')
-      navigate(`/pharmacy-shop/${pharmacyId}`)
+      navigate(`/patient/medicine/${pharmacyId}`)
     } finally {
       setLoading(false)
     }
@@ -103,8 +110,33 @@ export default function CheckoutPage() {
     return true
   }
 
+  /** Compressed first: a prescription photographed on a cheap phone is 4MB. */
+  const onPrescriptionPicked = async (e) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    setAttachingPrescription(true)
+    try {
+      const compressed = await compressImage(file)
+      const reader = new FileReader()
+      reader.onload = () => {
+        setPrescriptionImage(String(reader.result))
+        setAddressErrors(prev => ({ ...prev, prescription: undefined }))
+      }
+      reader.readAsDataURL(compressed)
+    } finally {
+      setAttachingPrescription(false)
+    }
+  }
+
   const placeOrder = async () => {
     if (!validateForm()) return
+
+    if (hasPrescriptionItems() && !prescriptionImage) {
+      setAddressErrors(prev => ({ ...prev, prescription: t('checkout.prescriptionMissing') }))
+      toast.error(t('checkout.prescriptionMissing'))
+      return
+    }
     
     try {
       setSubmitting(true)
@@ -118,11 +150,12 @@ export default function CheckoutPage() {
       if (orderType === 'delivery') {
         orderData.deliveryAddress = deliveryAddress
       }
+      if (prescriptionImage) orderData.prescriptionImage = prescriptionImage
       
       const { data } = await api.post('/pharmacy/orders', orderData)
       
       // Redirect to order success page
-      navigate(`/order-success/${data._id}`)
+      navigate(`/patient/medicine/orders/${data._id}`)
       
     } catch (error) {
       console.error('Order failed:', error)
@@ -150,10 +183,10 @@ export default function CheckoutPage() {
     return (
       <PageLayout title="Checkout">
         <div className="text-center py-12">
-          <div className="text-gray-500 text-lg">Unable to load checkout data</div>
+          <div className="text-muted text-lg">Unable to load checkout data</div>
           <button 
-            onClick={() => navigate(`/pharmacy-shop/${pharmacyId}`)}
-            className="btn-primary mt-4"
+            onClick={() => navigate(`/patient/medicine/${pharmacyId}`)}
+            className="btn btn-primary mt-4"
           >
             Back to Shop
           </button>
@@ -182,14 +215,14 @@ export default function CheckoutPage() {
                       value="delivery"
                       checked={orderType === 'delivery'}
                       onChange={e => setOrderType(e.target.value)}
-                      className="w-4 h-4 text-blue-600"
+                      className="w-4 h-4 text-info-600"
                     />
                     <div>
                       <div className="font-medium">Home Delivery</div>
-                      <div className="text-sm text-gray-600">
+                      <div className="text-small text-muted">
                         Get medicines delivered to your address
                         {calculateDeliveryFee() > 0 && (
-                          <span className="text-orange-600"> (+₹{calculateDeliveryFee()} delivery fee)</span>
+                          <span className="text-warning-600"> (+₹{calculateDeliveryFee()} delivery fee)</span>
                         )}
                       </div>
                     </div>
@@ -203,11 +236,11 @@ export default function CheckoutPage() {
                     value="pickup"
                     checked={orderType === 'pickup'}
                     onChange={e => setOrderType(e.target.value)}
-                    className="w-4 h-4 text-blue-600"
+                    className="w-4 h-4 text-info-600"
                   />
                   <div>
                     <div className="font-medium">Store Pickup</div>
-                    <div className="text-sm text-gray-600">
+                    <div className="text-small text-muted">
                       Collect your order from {pharmacy.name}
                     </div>
                   </div>
@@ -215,9 +248,9 @@ export default function CheckoutPage() {
               </div>
               
               {orderType === 'pickup' && (
-                <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                  <div className="text-sm font-medium text-blue-800 mb-1">Pickup Address:</div>
-                  <div className="text-sm text-blue-700">
+                <div className="mt-4 p-3 bg-info-50 rounded-lg">
+                  <div className="text-small font-medium text-info-600 mb-1">Pickup Address:</div>
+                  <div className="text-small text-info-600">
                     {pharmacy.address || pharmacy.location}<br/>
                     📞 {pharmacy.contact}<br/>
                     ⏰ {pharmacy.openingHours?.open} - {pharmacy.openingHours?.close}
@@ -305,19 +338,53 @@ export default function CheckoutPage() {
           {hasPrescriptionItems() && (
             <div className="card">
               <div className="card-body">
-                <div className="flex items-start space-x-3">
-                  <div className="text-2xl">⚠️</div>
-                  <div>
-                    <h4 className="font-semibold text-orange-700 mb-2">Prescription Required</h4>
-                    <p className="text-sm text-gray-600 mb-3">
-                      Your order contains prescription medicines. Please have your valid prescription ready 
-                      for verification {orderType === 'delivery' ? 'at the time of delivery' : 'when collecting from the pharmacy'}.
-                    </p>
-                    <div className="text-xs text-gray-500">
-                      Note: Orders with prescription medicines may require additional verification time.
+                <h4 className="card-title mb-1">{t('checkout.prescriptionTitle')}</h4>
+                <p className="text-small text-body mb-4">{t('checkout.prescriptionHelp')}</p>
+
+                {/* The order used to be placed on a promise to show the
+                    prescription later, which meant Schedule H medicines could
+                    be bought with one tap. The pharmacy now receives the photo
+                    with the order, and the server refuses the order without it. */}
+                {prescriptionImage ? (
+                  <div className="flex items-center gap-3">
+                    <img
+                      src={prescriptionImage}
+                      alt={t('checkout.prescriptionTitle')}
+                      className="h-20 w-20 object-cover rounded-control border border-line"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-small font-medium text-success-600">{t('checkout.prescriptionAdded')}</p>
+                      <button
+                        type="button"
+                        className="link text-caption"
+                        onClick={() => setPrescriptionImage('')}
+                      >
+                        {t('checkout.prescriptionReplace')}
+                      </button>
                     </div>
                   </div>
-                </div>
+                ) : (
+                  <>
+                    <input
+                      ref={prescriptionInputRef}
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      className="sr-only"
+                      onChange={onPrescriptionPicked}
+                    />
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      loading={attachingPrescription}
+                      onClick={() => prescriptionInputRef.current?.click()}
+                    >
+                      {t('checkout.prescriptionAdd')}
+                    </Button>
+                  </>
+                )}
+
+                {addressErrors.prescription && <p className="error-text mt-2" role="alert">{addressErrors.prescription}</p>}
               </div>
             </div>
           )}
@@ -348,16 +415,16 @@ export default function CheckoutPage() {
                 {cart.items.map(item => (
                   <div key={item.medicineId._id} className="flex justify-between items-start">
                     <div className="flex-1">
-                      <div className="font-medium text-sm">{item.medicineId.medicineName}</div>
-                      <div className="text-xs text-gray-600">
+                      <div className="font-medium text-small">{item.medicineId.medicineName}</div>
+                      <div className="text-caption text-muted">
                         {item.medicineId.brand && `${item.medicineId.brand} • `}
                         Qty: {item.quantity}
                         {item.medicineId.prescriptionRequired && (
-                          <span className="text-purple-600 font-medium"> • Rx Required</span>
+                          <span className="text-info-600 font-medium"> • Rx Required</span>
                         )}
                       </div>
                     </div>
-                    <div className="text-sm font-medium">₹{item.finalPrice * item.quantity}</div>
+                    <div className="text-small font-medium">₹{item.finalPrice * item.quantity}</div>
                   </div>
                 ))}
               </div>
@@ -394,11 +461,11 @@ export default function CheckoutPage() {
                     name="payment"
                     value="cod"
                     defaultChecked
-                    className="w-4 h-4 text-blue-600"
+                    className="w-4 h-4 text-info-600"
                   />
                   <div>
                     <div className="font-medium">Cash on Delivery</div>
-                    <div className="text-sm text-gray-600">Pay when you receive your order</div>
+                    <div className="text-small text-muted">Pay when you receive your order</div>
                   </div>
                 </label>
               </div>
@@ -409,15 +476,15 @@ export default function CheckoutPage() {
           <button
             onClick={placeOrder}
             disabled={submitting}
-            className={`btn-primary w-full text-lg py-3 ${submitting ? 'opacity-50 cursor-not-allowed' : ''}`}
+            className={`btn btn-primary w-full text-lg py-3 ${submitting ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             {submitting ? 'Placing Order...' : `Place Order - ₹${getFinalTotal()}`}
           </button>
 
           {/* Back to Shop */}
           <button
-            onClick={() => navigate(`/pharmacy-shop/${pharmacyId}`)}
-            className="btn-secondary w-full"
+            onClick={() => navigate(`/patient/medicine/${pharmacyId}`)}
+            className="btn btn-secondary w-full"
           >
             ← Back to Shop
           </button>

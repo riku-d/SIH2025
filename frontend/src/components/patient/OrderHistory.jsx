@@ -46,7 +46,7 @@ export default function OrderHistory() {
           }
           title={t('pharmacy.cartEmpty')}
           message={t('patient.overview.noOrderHelp')}
-          action={<Link to="/pharmacies" className="btn btn-primary">{t('patient.overview.orderMedicine')}</Link>}
+          action={<Link to="/patient/medicine" className="btn btn-primary">{t('patient.overview.orderMedicine')}</Link>}
         />
       </CardBody></Card>
     )
@@ -85,11 +85,11 @@ export default function OrderHistory() {
               </ul>
 
               <div className="flex flex-wrap gap-2 pt-4 border-t border-line-soft">
-                <Link to={`/order-success/${order._id}`} className="btn btn-secondary btn-sm">
+                <Link to={`/patient/medicine/orders/${order._id}`} className="btn btn-secondary btn-sm">
                   {t('common.viewDetails')}
                 </Link>
                 {order.pharmacyId?._id && (
-                  <Link to={`/pharmacy-shop/${order.pharmacyId._id}`} className="btn btn-ghost btn-sm">
+                  <Link to={`/patient/medicine/${order.pharmacyId._id}`} className="btn btn-ghost btn-sm">
                     {t('pharmacy.shopNow')}
                   </Link>
                 )}

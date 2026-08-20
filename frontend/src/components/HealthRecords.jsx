@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import api, { friendlyError } from '../services/api'
 import { useAuth } from '../context/AuthContext'
@@ -14,6 +14,7 @@ export default function HealthRecords({ patientId: patientIdProp }) {
   const { t, i18n } = useTranslation()
   const { userId } = useAuth()
   const toast = useToast()
+  const navigate = useNavigate()
   const patientId = patientIdProp || userId
 
   const [records, setRecords] = useState([])
@@ -84,7 +85,7 @@ export default function HealthRecords({ patientId: patientIdProp }) {
             }
             title={t('records.empty')}
             message={t('records.emptyHelp')}
-            action={!patientIdProp && <Link to="/doctors" className="btn btn-primary">{t('doctors.bookAppointment')}</Link>}
+            action={!patientIdProp && <Link to="/patient/care/doctors" className="btn btn-primary">{t('doctors.bookAppointment')}</Link>}
           />
         </CardBody>
       </Card>
@@ -148,6 +149,19 @@ export default function HealthRecords({ patientId: patientIdProp }) {
                     <p className="text-body whitespace-pre-line bg-surface-2 rounded-control p-3">
                       {record.prescription}
                     </p>
+                    {/* The app already sells these medicines; without this the
+                        patient had to read the prescription and start a search
+                        from scratch. */}
+                    {!patientIdProp && (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="mt-3"
+                        onClick={() => navigate('/patient/medicine', { state: { prescription: record.prescription } })}
+                      >
+                        {t('records.orderPrescription')}
+                      </Button>
+                    )}
                   </div>
                 )}
               </div>

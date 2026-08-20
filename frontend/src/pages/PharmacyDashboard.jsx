@@ -1,14 +1,17 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import PageLayout from '../components/PageLayout'
-import Tabs from '../components/ui/Tabs'
+import Page from '../components/app/Page'
 import { useToast } from '../components/ui/Toast'
 import api, { friendlyError } from '../services/api'
 import { io } from 'socket.io-client'
+import Badge from '../components/ui/Badge'
+import { orderStatus } from '../lib/status'
+import { useTranslation } from 'react-i18next'
 
 const SOCKET_URL = import.meta.env.VITE_SIGNAL_URL || 'http://localhost:5000'
 
 export default function PharmacyDashboard() {
+  const { t } = useTranslation()
   const toast = useToast()
   const user = JSON.parse(localStorage.getItem('user') || 'null')
   const navigate = useNavigate()
@@ -19,6 +22,10 @@ export default function PharmacyDashboard() {
   const [pharmacy, setPharmacy] = useState(null)
   const [medicines, setMedicines] = useState([])
   const [orders, setOrders] = useState([])
+  // Prescriptions are fetched per order rather than with the list, so the
+  // orders page stays light on a connection that struggles with it already.
+  const [prescriptions, setPrescriptions] = useState({})
+  const [loadingPrescription, setLoadingPrescription] = useState(null)
   const [stats, setStats] = useState({})
   const [loading, setLoading] = useState(true)
   
@@ -257,6 +264,19 @@ export default function PharmacyDashboard() {
     })
   }
 
+  const loadPrescription = async (orderId) => {
+    setLoadingPrescription(orderId)
+    try {
+      const { data } = await api.get(`/pharmacy/orders/${orderId}`)
+      setPrescriptions(prev => ({ ...prev, [orderId]: data.prescriptionImage || '' }))
+      if (!data.prescriptionImage) toast.warning('No prescription was attached to this order.')
+    } catch (err) {
+      toast.error(friendlyError(err))
+    } finally {
+      setLoadingPrescription(null)
+    }
+  }
+
   const updateOrderStatus = async (orderId, status) => {
     try {
       await api.put(`/pharmacy/orders/${orderId}/status`, { status })
@@ -267,43 +287,36 @@ export default function PharmacyDashboard() {
     }
   }
 
+  /**
+   * Both badges now come from the shared Badge component and the shared
+   * status map, rather than a second private colour table that had drifted
+   * onto Tailwind's default ramps — the same status was rendering in a
+   * different green here than everywhere else in the app.
+   */
   const getStockStatusBadge = (medicine) => {
-    if (medicine.quantity === 0) {
-      return <span className="px-2 py-1 text-xs bg-red-100 text-red-800 rounded-full">Out of Stock</span>
-    } else if (medicine.quantity <= medicine.minQuantity) {
-      return <span className="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded-full">Low Stock</span>
-    }
-    return <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">In Stock</span>
+    if (medicine.quantity === 0) return <Badge tone="danger">{t('pharmacy.outOfStock')}</Badge>
+    if (medicine.quantity <= medicine.minQuantity) return <Badge tone="warning">{t('pharmacy.lowStock')}</Badge>
+    return <Badge tone="success">{t('pharmacy.inStock')}</Badge>
   }
 
   const getOrderStatusBadge = (status) => {
-    const colors = {
-      pending: 'bg-yellow-100 text-yellow-800',
-      confirmed: 'bg-blue-100 text-blue-800',
-      preparing: 'bg-purple-100 text-purple-800',
-      ready: 'bg-green-100 text-green-800',
-      dispatched: 'bg-indigo-100 text-indigo-800',
-      delivered: 'bg-green-100 text-green-800',
-      cancelled: 'bg-red-100 text-red-800'
-    }
-    return <span className={`px-2 py-1 text-xs rounded-full ${colors[status] || colors.pending}`}>
-      {status.charAt(0).toUpperCase() + status.slice(1)}
-    </span>
+    const { tone, label } = orderStatus(status, t)
+    return <Badge tone={tone}>{label}</Badge>
   }
 
   if (loading) {
     return (
-      <PageLayout title="Pharmacy Dashboard">
+      <Page title="Pharmacy Dashboard">
         <div className="flex justify-center items-center h-64">
           <div className="text-lg">Loading...</div>
         </div>
-      </PageLayout>
+      </Page>
     )
   }
 
   if (!pharmacy) {
     return (
-      <PageLayout title="Setup Your Pharmacy">
+      <Page title="Setup Your Pharmacy">
         <div className="max-w-2xl mx-auto">
           <div className="card">
             <div className="card-body">
@@ -350,7 +363,7 @@ export default function PharmacyDashboard() {
                 />
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium mb-1">Opening Time</label>
+                    <label className="block text-small font-medium mb-1">Opening Time</label>
                     <input
                       className="input"
                       type="time"
@@ -359,7 +372,7 @@ export default function PharmacyDashboard() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-1">Closing Time</label>
+                    <label className="block text-small font-medium mb-1">Closing Time</label>
                     <input
                       className="input"
                       type="time"
@@ -386,31 +399,20 @@ export default function PharmacyDashboard() {
                     onChange={e => setPharmacyForm({...pharmacyForm, deliveryRadius: parseInt(e.target.value)})}
                   />
                 )}
-                <button onClick={createPharmacy} className="btn-primary w-full">
+                <button onClick={createPharmacy} className="btn btn-primary w-full">
                   Create Pharmacy
                 </button>
               </div>
             </div>
           </div>
         </div>
-      </PageLayout>
+      </Page>
     )
   }
 
   return (
-    <PageLayout title={`${pharmacy.name} - Dashboard`}>
+    <Page title={`${pharmacy.name} - Dashboard`}>
       {/* Tabs */}
-      <Tabs
-        className="mb-6"
-        active={activeTab}
-        onChange={setActiveTab}
-        items={[
-          { key: 'overview', label: 'Overview' },
-          { key: 'medicines', label: 'Medicines' },
-          { key: 'orders', label: 'Orders' },
-          { key: 'profile', label: 'Profile' }
-        ]}
-      />
 
       {/* Overview Tab */}
       {activeTab === 'overview' && (
@@ -418,26 +420,26 @@ export default function PharmacyDashboard() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
             <div className="card">
               <div className="card-body text-center">
-                <div className="text-2xl font-bold text-blue-600">{stats.totalMedicines}</div>
-                <div className="text-sm text-gray-600">Total Medicines</div>
+                <div className="text-2xl font-bold text-info-600">{stats.totalMedicines}</div>
+                <div className="text-small text-muted">Total Medicines</div>
               </div>
             </div>
             <div className="card">
               <div className="card-body text-center">
-                <div className="text-2xl font-bold text-green-600">{stats.totalOrders}</div>
-                <div className="text-sm text-gray-600">Total Orders</div>
+                <div className="text-2xl font-bold text-success-600">{stats.totalOrders}</div>
+                <div className="text-small text-muted">Total Orders</div>
               </div>
             </div>
             <div className="card">
               <div className="card-body text-center">
-                <div className="text-2xl font-bold text-yellow-600">{stats.pendingOrders}</div>
-                <div className="text-sm text-gray-600">Pending Orders</div>
+                <div className="text-2xl font-bold text-warning-600">{stats.pendingOrders}</div>
+                <div className="text-small text-muted">Pending Orders</div>
               </div>
             </div>
             <div className="card">
               <div className="card-body text-center">
-                <div className="text-2xl font-bold text-red-600">{stats.lowStockItems}</div>
-                <div className="text-sm text-gray-600">Low Stock Items</div>
+                <div className="text-2xl font-bold text-danger-600">{stats.lowStockItems}</div>
+                <div className="text-small text-muted">Low Stock Items</div>
               </div>
             </div>
           </div>
@@ -448,10 +450,10 @@ export default function PharmacyDashboard() {
               <h3 className="section-title mb-4">Recent Orders</h3>
               <div className="space-y-4">
                 {orders.slice(0, 5).map(order => (
-                  <div key={order._id} className="flex justify-between items-center p-3 bg-gray-50 rounded">
+                  <div key={order._id} className="flex justify-between items-center p-3 bg-surface-2 rounded">
                     <div>
                       <div className="font-medium">{order.orderId}</div>
-                      <div className="text-sm text-gray-600">{order.userId?.name}</div>
+                      <div className="text-small text-muted">{order.userId?.name}</div>
                     </div>
                     <div className="text-right">
                       <div className="font-medium">₹{order.totalAmount}</div>
@@ -460,7 +462,7 @@ export default function PharmacyDashboard() {
                   </div>
                 ))}
                 {orders.length === 0 && (
-                  <div className="text-center text-gray-500 py-8">
+                  <div className="text-center text-muted py-8">
                     No orders yet
                   </div>
                 )}
@@ -481,7 +483,7 @@ export default function PharmacyDashboard() {
                 setShowMedicineForm(true)
                 setEditingMedicine(null)
               }}
-              className="btn-primary"
+              className="btn btn-primary"
             >
               Add Medicine
             </button>
@@ -613,7 +615,7 @@ export default function PharmacyDashboard() {
                     rows={3}
                   />
                   <div className="flex gap-2 mt-4">
-                    <button onClick={addMedicine} className="btn-primary">
+                    <button onClick={addMedicine} className="btn btn-primary">
                       {editingMedicine ? 'Update' : 'Add'} Medicine
                     </button>
                     <button 
@@ -621,7 +623,7 @@ export default function PharmacyDashboard() {
                         setShowMedicineForm(false)
                         setEditingMedicine(null)
                       }}
-                      className="btn-secondary"
+                      className="btn btn-secondary"
                     >
                       Cancel
                     </button>
@@ -642,12 +644,12 @@ export default function PharmacyDashboard() {
                         <h4 className="font-semibold">{medicine.medicineName}</h4>
                         {getStockStatusBadge(medicine)}
                         {medicine.prescriptionRequired && (
-                          <span className="px-2 py-1 text-xs bg-purple-100 text-purple-800 rounded-full">
+                          <span className="px-2 py-1 text-caption bg-info-50 text-info-600 rounded-full">
                             Rx Required
                           </span>
                         )}
                       </div>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-600">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-small text-muted">
                         <div>Brand: {medicine.brand || 'N/A'}</div>
                         <div>Form: {medicine.form}</div>
                         <div>Price: ₹{medicine.price}</div>
@@ -657,13 +659,13 @@ export default function PharmacyDashboard() {
                     <div className="flex gap-2">
                       <button 
                         onClick={() => editMedicine(medicine)}
-                        className="btn-secondary text-xs"
+                        className="btn btn-secondary text-caption"
                       >
                         Edit
                       </button>
                       <button 
                         onClick={() => deleteMedicine(medicine._id)}
-                        className="btn-secondary text-xs text-red-600"
+                        className="btn btn-secondary text-caption text-danger-600"
                       >
                         Delete
                       </button>
@@ -673,7 +675,7 @@ export default function PharmacyDashboard() {
               </div>
             ))}
             {medicines.length === 0 && (
-              <div className="text-center text-gray-500 py-8">
+              <div className="text-center text-muted py-8">
                 No medicines added yet. Add your first medicine to get started!
               </div>
             )}
@@ -692,19 +694,19 @@ export default function PharmacyDashboard() {
                   <div className="flex justify-between items-start mb-4">
                     <div>
                       <div className="font-semibold">{order.orderId}</div>
-                      <div className="text-sm text-gray-600">
+                      <div className="text-small text-muted">
                         Customer: {order.userId?.name} | 
                         Type: {order.orderType} | 
                         Total: ₹{order.totalAmount}
                       </div>
-                      <div className="text-sm text-gray-500">
+                      <div className="text-small text-muted">
                         {new Date(order.createdAt).toLocaleDateString()}
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
                       {getOrderStatusBadge(order.status)}
                       <select 
-                        className="input text-xs"
+                        className="input text-caption"
                         value={order.status}
                         onChange={(e) => updateOrderStatus(order._id, e.target.value)}
                       >
@@ -721,10 +723,10 @@ export default function PharmacyDashboard() {
                   
                   {/* Order Items */}
                   <div className="border-t pt-4">
-                    <div className="text-sm font-medium mb-2">Items:</div>
+                    <div className="text-small font-medium mb-2">Items:</div>
                     <div className="space-y-2">
                       {order.items.map((item, idx) => (
-                        <div key={idx} className="flex justify-between text-sm">
+                        <div key={idx} className="flex justify-between text-small">
                           <span>{item.medicineName} × {item.quantity}</span>
                           <span>₹{item.total}</span>
                         </div>
@@ -732,10 +734,38 @@ export default function PharmacyDashboard() {
                     </div>
                   </div>
                   
+                  {/* The prescription the patient attached at checkout.
+                      Dispensing a Schedule H medicine against a flag that
+                      merely says "prescription required" is not a check —
+                      the pharmacist has to be able to read the actual paper. */}
+                  {order.prescriptionRequired && (
+                    <div className="border-t pt-4 mt-4">
+                      <div className="text-small font-medium mb-2">Prescription</div>
+                      {prescriptions[order._id] ? (
+                        <a href={prescriptions[order._id]} target="_blank" rel="noreferrer" title="Open full size">
+                          <img
+                            src={prescriptions[order._id]}
+                            alt="Prescription supplied by the patient"
+                            className="max-h-40 rounded-control border border-line hover:opacity-90 transition-opacity"
+                          />
+                        </a>
+                      ) : (
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          disabled={loadingPrescription === order._id}
+                          onClick={() => loadPrescription(order._id)}
+                        >
+                          {loadingPrescription === order._id ? 'Loading…' : 'View prescription'}
+                        </button>
+                      )}
+                    </div>
+                  )}
+
                   {order.orderType === 'delivery' && order.deliveryAddress && (
                     <div className="border-t pt-4 mt-4">
-                      <div className="text-sm font-medium mb-2">Delivery Address:</div>
-                      <div className="text-sm text-gray-600">
+                      <div className="text-small font-medium mb-2">Delivery Address:</div>
+                      <div className="text-small text-muted">
                         {order.deliveryAddress.name}, {order.deliveryAddress.phone}<br/>
                         {order.deliveryAddress.addressLine1}<br/>
                         {order.deliveryAddress.city}, {order.deliveryAddress.state} - {order.deliveryAddress.pincode}
@@ -746,7 +776,7 @@ export default function PharmacyDashboard() {
               </div>
             ))}
             {orders.length === 0 && (
-              <div className="text-center text-gray-500 py-8">
+              <div className="text-center text-muted py-8">
                 No orders received yet
               </div>
             )}
@@ -801,7 +831,7 @@ export default function PharmacyDashboard() {
               />
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Opening Time</label>
+                  <label className="block text-small font-medium mb-1">Opening Time</label>
                   <input
                     className="input"
                     type="time"
@@ -810,7 +840,7 @@ export default function PharmacyDashboard() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Closing Time</label>
+                  <label className="block text-small font-medium mb-1">Closing Time</label>
                   <input
                     className="input"
                     type="time"
@@ -837,14 +867,14 @@ export default function PharmacyDashboard() {
                   onChange={e => setPharmacyForm({...pharmacyForm, deliveryRadius: parseInt(e.target.value)})}
                 />
               )}
-              <button onClick={updatePharmacy} className="btn-primary">
+              <button onClick={updatePharmacy} className="btn btn-primary">
                 Update Profile
               </button>
             </div>
           </div>
         </div>
       )}
-    </PageLayout>
+    </Page>
   )
 }
 

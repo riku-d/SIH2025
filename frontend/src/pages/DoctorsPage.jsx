@@ -51,7 +51,7 @@ export default function DoctorsPage() {
 
   // One profile, at /doctors/:id — the old "View details" opened a modal
   // that duplicated the whole page.
-  const openProfile = (doctor) => navigate(`/doctors/${doctor._id}`)
+  const openProfile = (doctor) => navigate(`/patient/care/doctors/${doctor._id}`)
 
   return (
     <div className="container-app py-6 sm:py-8">

@@ -1,14 +1,21 @@
 import Appointment from '../models/Appointment.js';
+import { SLOTS, isValidSlot } from '../config/slots.js';
 
 export const bookAppointment = async (req, res) => {
     try {
-        const { patientId, doctorId, requestedDate, symptoms, consultationType } = req.body;
+        const { patientId, doctorId, requestedDate, symptoms, consultationType, timeSlot } = req.body;
         
         // Validate required fields
         if (!patientId || !doctorId || !requestedDate) {
             return res.status(400).json({ 
                 message: 'Missing required fields: patientId, doctorId, or requestedDate' 
             });
+        }
+
+        // The patient now asks for a specific hour, not just a day. Optional,
+        // so older clients that only send a date still work.
+        if (timeSlot && !isValidSlot(timeSlot)) {
+            return res.status(400).json({ message: 'Unknown time slot' });
         }
         
         // Process uploaded attachments if any
@@ -47,6 +54,10 @@ export const bookAppointment = async (req, res) => {
             status: 'pending',
             attachments
         };
+
+        // The requested hour is the whole point of the patient picking a slot:
+        // without it stored, the doctor has nothing to accept in one tap.
+        if (timeSlot) appointmentData.timeSlot = timeSlot;
         
         const appointment = await Appointment.create(appointmentData);
         
@@ -92,10 +103,26 @@ export const getAppointmentsForDoctor = async (req, res) => {
 export const confirmAppointment = async (req, res) => {
     try {
         const { id } = req.params; // appointment ID
-        const { confirmedDate, timeSlot, doctorNotes } = req.body;
-        
+        const { doctorNotes } = req.body;
+
+        const requested = await Appointment.findById(id);
+        if (!requested) return res.status(404).json({ message: 'Appointment not found' });
+
+        /**
+         * Accepting what the patient asked for is the common case, so the
+         * doctor should not have to retype it. An empty body means "as
+         * requested"; supplying a date or slot means "at this time instead".
+         */
+        const confirmedDate = req.body.confirmedDate || requested.requestedDate;
+        const timeSlot = req.body.timeSlot || requested.timeSlot;
+
+        if (timeSlot && !isValidSlot(timeSlot)) {
+            return res.status(400).json({ message: 'Unknown time slot' });
+        }
+
         // Check if the time slot is already booked for this doctor on this date
         const existingAppointment = await Appointment.findOne({
+            _id: { $ne: id },
             doctorId: req.user.id,
             confirmedDate: new Date(confirmedDate),
             timeSlot,
@@ -223,6 +250,55 @@ export const cancelAppointment = async (req, res) => {
             .populate('patientId', 'name age village email');
 
         res.json({ message: 'Appointment cancelled', appointment: populated });
+    } catch (e) {
+        res.status(500).json({ message: e.message });
+    }
+};
+
+
+/**
+ * Which slots a doctor still has free on a given day.
+ *
+ * Without this the patient picks a time blind and the doctor counter-proposes
+ * another — two round trips, on connections where each one is expensive.
+ */
+export const getDoctorAvailability = async (req, res) => {
+    try {
+        const { doctorId } = req.params;
+        const { date } = req.query;
+        if (!date) return res.status(400).json({ message: 'date is required' });
+
+        const dayStart = new Date(date);
+        dayStart.setHours(0, 0, 0, 0);
+        const dayEnd = new Date(dayStart);
+        dayEnd.setDate(dayEnd.getDate() + 1);
+
+        // Pending requests hold a slot too — offering it to someone else
+        // would just create a clash the doctor has to resolve by hand.
+        const busy = await Appointment.find({
+            doctorId,
+            status: { $in: ['pending', 'confirmed'] },
+            $or: [
+                { confirmedDate: { $gte: dayStart, $lt: dayEnd } },
+                { confirmedDate: null, requestedDate: { $gte: dayStart, $lt: dayEnd } }
+            ]
+        }).select('timeSlot').lean();
+
+        const taken = new Set(busy.map(a => a.timeSlot).filter(Boolean));
+        const now = new Date();
+
+        res.json({
+            date,
+            slots: SLOTS.map(slot => {
+                const start = new Date(dayStart);
+                const [h, m] = slot.split('-')[0].split(':').map(Number);
+                start.setHours(h, m, 0, 0);
+                return {
+                    slot,
+                    available: !taken.has(slot) && start > now
+                };
+            })
+        });
     } catch (e) {
         res.status(500).json({ message: e.message });
     }

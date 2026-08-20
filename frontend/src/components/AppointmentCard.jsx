@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import Badge from './ui/Badge'
 import Avatar from './ui/Avatar'
 import { appointmentStatus, formatDate } from '../lib/status'
+import { slotLabel } from '../lib/slots'
 
 /**
  * Status is a left stripe plus one badge on a neutral surface. The doctor
@@ -25,10 +26,10 @@ export default function AppointmentCard({ appointment, perspective = 'patient', 
         <div className="flex items-start gap-3 mb-4">
           <Avatar name={person?.name || '?'} size="md" />
           <div className="min-w-0 flex-1">
-            <h3 className="card-title truncate">{person?.name || t('records.unknownDoctor')}</h3>
-            {subtitle && <p className="text-small text-muted truncate">{subtitle}</p>}
+            <h3 className="card-title">{person?.name || t('records.unknownDoctor')}</h3>
+            {subtitle && <p className="text-small text-muted">{subtitle}</p>}
           </div>
-          <Badge tone={status.tone}>{status.label}</Badge>
+          <Badge tone={status.tone} className="shrink-0">{status.label}</Badge>
         </div>
 
         <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-2 text-small mb-4">
@@ -43,7 +44,9 @@ export default function AppointmentCard({ appointment, perspective = 'patient', 
           {appointment.timeSlot && (
             <div className="flex justify-between gap-3 sm:block">
               <dt className="text-muted">{t('appointments.timeSlot')}</dt>
-              <dd className="text-ink font-medium tabular sm:mt-0.5">{appointment.timeSlot}</dd>
+              {/* "9 AM – 10 AM" rather than "09:00-10:00": the raw slot key
+                  is storage, not something to read at a glance. */}
+              <dd className="text-ink font-medium sm:mt-0.5">{slotLabel(appointment.timeSlot, i18n.language)}</dd>
             </div>
           )}
           <div className="flex justify-between gap-3 sm:block">

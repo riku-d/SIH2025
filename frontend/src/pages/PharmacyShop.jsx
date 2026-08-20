@@ -1,23 +1,35 @@
 import React, { useEffect, useState } from 'react'
-import { useParams, useNavigate , Link} from 'react-router-dom'
+import { useParams, useNavigate, useLocation, Link } from 'react-router-dom'
 import PageLayout from '../components/PageLayout'
 import { useToast } from '../components/ui/Toast'
 import api, { friendlyError } from '../services/api'
 import { io } from 'socket.io-client'
+import Badge from '../components/ui/Badge'
+import { useTranslation } from 'react-i18next'
 
 const SOCKET_URL = import.meta.env.VITE_SIGNAL_URL || 'http://localhost:5000'
 
 export default function PharmacyShop() {
+  const { t } = useTranslation()
   const toast = useToast()
   const { pharmacyId } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
+
+  // A prescription is free text; the first capitalised word is the best
+  // available guess at a medicine name without a structured field.
+  const prescriptionSeed = (location.state?.prescription || '')
+    .split(/[\n,.]/)[0]
+    .replace(/\d+\s*(mg|ml|g)\b.*/i, '')
+    .trim()
+    .slice(0, 40)
   const user = JSON.parse(localStorage.getItem('user') || 'null')
   
   const [pharmacy, setPharmacy] = useState(null)
   const [medicines, setMedicines] = useState([])
   const [cart, setCart] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [searchTerm, setSearchTerm] = useState('')
+  const [searchTerm, setSearchTerm] = useState(prescriptionSeed || '')
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
@@ -155,12 +167,9 @@ export default function PharmacyShop() {
   }
 
   const getStockStatusBadge = (medicine) => {
-    if (medicine.quantity === 0) {
-      return <span className="px-2 py-1 text-xs bg-red-100 text-red-800 rounded-full">Out of Stock</span>
-    } else if (medicine.quantity <= medicine.minQuantity) {
-      return <span className="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded-full">Low Stock</span>
-    }
-    return <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">In Stock</span>
+    if (medicine.quantity === 0) return <Badge tone="danger">{t('pharmacy.outOfStock')}</Badge>
+    if (medicine.quantity <= medicine.minQuantity) return <Badge tone="warning">{t('pharmacy.lowStock')}</Badge>
+    return <Badge tone="success">{t('pharmacy.inStock')}</Badge>
   }
 
   const getCartItemCount = () => {
@@ -183,7 +192,7 @@ export default function PharmacyShop() {
     return (
       <PageLayout title="Pharmacy Not Found">
         <div className="text-center py-12">
-          <div className="text-gray-500 text-lg">Pharmacy not found</div>
+          <div className="text-muted text-lg">Pharmacy not found</div>
         </div>
       </PageLayout>
     )
@@ -242,7 +251,7 @@ export default function PharmacyShop() {
             <div className="p-4 border-b">
               <div className="flex justify-between items-center">
                 <h3 className="text-lg font-semibold">Your Cart</h3>
-                <button onClick={() => setShowCart(false)} className="text-gray-500 text-xl">
+                <button onClick={() => setShowCart(false)} className="text-muted text-xl">
                   ×
                 </button>
               </div>
@@ -250,7 +259,7 @@ export default function PharmacyShop() {
             
             <div className="p-4">
               {cart.items?.length === 0 ? (
-                <div className="text-center text-gray-500 py-8">
+                <div className="text-center text-muted py-8">
                   Your cart is empty
                 </div>
               ) : (
@@ -261,12 +270,12 @@ export default function PharmacyShop() {
                         <div className="flex justify-between items-start mb-2">
                           <div className="flex-1">
                             <h4 className="font-medium">{item.medicineId.medicineName}</h4>
-                            <div className="text-sm text-gray-600">{item.medicineId.brand}</div>
-                            <div className="text-sm text-green-600">₹{item.finalPrice} each</div>
+                            <div className="text-small text-muted">{item.medicineId.brand}</div>
+                            <div className="text-small text-success-600">₹{item.finalPrice} each</div>
                           </div>
                           <button 
                             onClick={() => removeFromCart(item.medicineId._id)}
-                            className="text-red-500 text-sm hover:underline"
+                            className="text-danger-500 text-small hover:underline"
                           >
                             Remove
                           </button>
@@ -275,7 +284,7 @@ export default function PharmacyShop() {
                           <button 
                             onClick={() => updateCartItem(item.medicineId._id, item.quantity - 1)}
                             disabled={item.quantity <= 1}
-                            className="btn-secondary text-xs px-2 py-1"
+                            className="btn btn-secondary text-caption px-2 py-1"
                           >
                             -
                           </button>
@@ -283,7 +292,7 @@ export default function PharmacyShop() {
                           <button 
                             onClick={() => updateCartItem(item.medicineId._id, item.quantity + 1)}
                             disabled={item.quantity >= item.medicineId.quantity}
-                            className="btn-secondary text-xs px-2 py-1"
+                            className="btn btn-secondary text-caption px-2 py-1"
                           >
                             +
                           </button>
@@ -307,14 +316,14 @@ export default function PharmacyShop() {
                           }
                           setShowCart(false)
                           // Navigate to checkout using React Router
-                          navigate(`/checkout/${pharmacyId}`)
+                          navigate(`/patient/medicine/${pharmacyId}/checkout`)
                         }}
                         disabled={!cart?.items?.length || cart.items.length === 0}
-                        className="btn-primary w-full"
+                        className="btn btn-primary w-full"
                       >
                         Proceed to Checkout
                       </button>
-                      <button onClick={clearCart} className="btn-secondary w-full">
+                      <button onClick={clearCart} className="btn btn-secondary w-full">
                         Clear Cart
                       </button>
                     </div>
@@ -352,7 +361,7 @@ export default function PharmacyShop() {
                 <option key={category} value={category}>{category}</option>
               ))}
             </select>
-            <div className="text-sm text-gray-600 flex items-center">
+            <div className="text-small text-muted flex items-center">
               {medicines.length} medicines found
             </div>
           </div>
@@ -378,39 +387,40 @@ export default function PharmacyShop() {
               </div>
 
               <div className="space-y-2">
-                <div className="flex justify-between items-start">
-                  <h4 className="font-semibold text-sm">{medicine.medicineName}</h4>
-                  {getStockStatusBadge(medicine)}
+                {/* Stacked, not side by side: on a phone-width card the
+                    name and the badge were each wrapping to two lines and
+                    colliding. The name is what people scan for, so it gets
+                    the full width. */}
+                <div className="flex flex-col gap-1.5 items-start">
+                  <h4 className="font-semibold text-small text-ink leading-snug">{medicine.medicineName}</h4>
+                  <div className="flex flex-wrap gap-1.5">
+                    {getStockStatusBadge(medicine)}
+                    {medicine.prescriptionRequired && <Badge tone="info">{t('assistant.prescriptionOnly')}</Badge>}
+                  </div>
                 </div>
                 
                 {medicine.brand && (
-                  <div className="text-xs text-gray-600">Brand: {medicine.brand}</div>
+                  <div className="text-caption text-muted">Brand: {medicine.brand}</div>
                 )}
                 
-                <div className="text-xs text-gray-600">
+                <div className="text-caption text-muted">
                   {medicine.form} • {medicine.dosage}
                 </div>
                 
-                {medicine.prescriptionRequired && (
-                  <span className="px-2 py-1 text-xs bg-purple-100 text-purple-800 rounded-full">
-                    Prescription Required
-                  </span>
-                )}
-                
                 <div className="flex justify-between items-center">
                   <div>
-                    <div className="font-semibold text-green-600">₹{medicine.finalPrice}</div>
+                    <div className="font-semibold text-success-600">₹{medicine.finalPrice}</div>
                     {medicine.discount > 0 && (
-                      <div className="text-xs text-gray-500 line-through">₹{medicine.price}</div>
+                      <div className="text-caption text-muted line-through">₹{medicine.price}</div>
                     )}
                   </div>
-                  <div className="text-xs text-gray-600">
+                  <div className="text-caption text-muted">
                     Stock: {medicine.quantity}
                   </div>
                 </div>
 
                 {medicine.description && (
-                  <div className="text-xs text-gray-600">
+                  <div className="text-caption text-muted">
                     {medicine.description.length > 80 
                       ? `${medicine.description.substring(0, 80)}...`
                       : medicine.description
@@ -422,7 +432,7 @@ export default function PharmacyShop() {
                   <button 
                     onClick={() => addToCart(medicine._id)}
                     disabled={medicine.quantity === 0}
-                    className={`btn-primary text-xs w-full mt-2 ${
+                    className={`btn btn-primary text-caption w-full mt-2 ${
                       medicine.quantity === 0 ? 'opacity-50 cursor-not-allowed' : ''
                     }`}
                   >
@@ -447,8 +457,8 @@ export default function PharmacyShop() {
 
       {!loadError && medicines.length === 0 && (
         <div className="text-center py-12">
-          <div className="text-gray-500 text-lg mb-2">No medicines found</div>
-          <div className="text-gray-400">
+          <div className="text-muted text-lg mb-2">No medicines found</div>
+          <div className="text-muted">
             {searchTerm || categoryFilter !== 'all'
               ? 'Try adjusting your search criteria'
               : 'This pharmacy has no medicines listed yet'
@@ -464,7 +474,7 @@ export default function PharmacyShop() {
             <button 
               onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
               disabled={currentPage === 1}
-              className="btn-secondary disabled:opacity-50"
+              className="btn btn-secondary disabled:opacity-50"
             >
               Previous
             </button>
@@ -476,7 +486,7 @@ export default function PharmacyShop() {
             <button 
               onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
               disabled={currentPage === totalPages}
-              className="btn-secondary disabled:opacity-50"
+              className="btn btn-secondary disabled:opacity-50"
             >
               Next
             </button>
@@ -486,7 +496,7 @@ export default function PharmacyShop() {
 
       {!user && (
         <div className="mt-8 text-center">
-          <div className="text-gray-600 mb-4">Please login as a patient to add medicines to cart</div>
+          <div className="text-muted mb-4">Please login as a patient to add medicines to cart</div>
           <Link to="/login" className="btn btn-primary">
             Login
           </Link>

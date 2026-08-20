@@ -8,6 +8,7 @@ import connectDB from './config/db.js';
 import { attachSocketIO } from './middleware/socketMiddleware.js';
 import authRoutes from './routes/authRoutes.js';
 import appointmentRoutes from './routes/appointmentRoutes.js';
+import assistantRoutes from './routes/assistantRoutes.js';
 import healthRecordRoutes from './routes/healthRecordRoutes.js';
 import hospitalRoutes from './routes/hospitalRoutes.js';
 import pharmacyRoutes from './routes/pharmacyRoutes.js';
@@ -45,10 +46,15 @@ app.use(cors({
     origin: allowedOrigins,
     credentials: true
 }));
+app.use(morgan('dev'));
+
+// Mounted before the global JSON parser: the assistant carries base64 photos
+// and declares its own, larger body limit. Every other route keeps 100kb.
+app.use('/api/assistant', assistantRoutes);
 
 app.use(express.json());
-app.use(morgan('dev'));
-app.use(attachSocketIO(io));
+app.use(attachSocketIO(io)); // Attach socket.io to requests
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/appointments', appointmentRoutes);

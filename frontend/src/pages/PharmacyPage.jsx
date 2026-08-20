@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import api from '../services/api'
 import PageLayout from '../components/PageLayout'
@@ -9,9 +9,12 @@ import Button from '../components/ui/Button'
 import { Field, Input } from '../components/ui/Field'
 import { SkeletonGrid } from '../components/ui/Skeleton'
 import { EmptyState, ErrorState } from '../components/ui/States'
+import Alert from '../components/ui/Alert'
 
 export default function PharmacyPage() {
   const { t } = useTranslation()
+  const location = useLocation()
+  const prescription = location.state?.prescription
   const [pharmacies, setPharmacies] = useState([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
@@ -50,6 +53,13 @@ export default function PharmacyPage() {
 
   return (
     <PageLayout title={t('pharmacy.title')} description={t('pharmacy.subtitle')}>
+      {prescription && (
+        <Alert tone="info" title={t('pharmacy.fromPrescription')} className="mb-5">
+          <p className="mb-2">{t('pharmacy.fromPrescriptionBody')}</p>
+          <p className="text-caption bg-white/60 rounded-control p-2.5 whitespace-pre-line">{prescription}</p>
+        </Alert>
+      )}
+
       <Card className="mb-6">
         <CardBody>
           <form onSubmit={search} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_auto] lg:items-end">
@@ -96,7 +106,7 @@ export default function PharmacyPage() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {pharmacies.map(pharmacy => (
             <Card key={pharmacy._id} interactive className="h-full">
-              <Link to={`/pharmacy-shop/${pharmacy._id}`} className="card-body flex flex-col h-full no-underline">
+              <Link to={`/patient/medicine/${pharmacy._id}`} state={prescription ? { prescription } : undefined} className="card-body flex flex-col h-full no-underline">
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <h2 className="card-title min-w-0">{pharmacy.name}</h2>
                   <Badge tone={pharmacy.deliveryAvailable ? 'success' : 'neutral'}>

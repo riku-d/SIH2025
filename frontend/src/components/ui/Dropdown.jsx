@@ -5,7 +5,7 @@ import React, { useEffect, useRef, useState } from 'react'
  * touch and unreachable by keyboard — on the device most of our users
  * have. This is click-driven with Esc, arrows and click-outside.
  */
-export default function Dropdown({ trigger, children, align = 'right', label }) {
+export default function Dropdown({ trigger, children, align = 'right', placement = 'bottom', label }) {
   const [open, setOpen] = useState(false)
   const wrapRef = useRef(null)
   const menuRef = useRef(null)
@@ -41,8 +41,9 @@ export default function Dropdown({ trigger, children, align = 'right', label }) 
           role="menu"
           aria-label={label}
           onKeyDown={onMenuKeyDown}
-          className={`absolute ${align === 'right' ? 'right-0' : 'left-0'} mt-2 min-w-[12rem] z-40
-                      bg-surface border border-line rounded-card shadow-raised py-1.5 animate-rise-in`}
+          className={`absolute ${align === 'right' ? 'right-0' : 'left-0'} min-w-[12rem] z-40
+                      ${placement === 'top' ? 'bottom-full mb-2' : 'mt-2'}
+                      bg-surface border border-line rounded-card shadow-lifted py-1.5 animate-rise-in`}
         >
           {children({ close: () => setOpen(false) })}
         </div>

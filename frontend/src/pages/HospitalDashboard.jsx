@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import api, { friendlyError } from '../services/api'
 import { useToast } from '../components/ui/Toast'
-import PageLayout from '../components/PageLayout'
+import Page from '../components/app/Page'
 import Card, { CardBody, CardHeader } from '../components/ui/Card'
 import Button from '../components/ui/Button'
 import Avatar from '../components/ui/Avatar'
@@ -119,21 +119,21 @@ export default function HospitalDashboard() {
   }
 
   if (loading) {
-    return <PageLayout title={t('hospital.title')}><SkeletonList count={2} /></PageLayout>
+    return <Page title={t('hospital.title')}><SkeletonList count={2} /></Page>
   }
 
   if (loadError) {
     return (
-      <PageLayout title={t('hospital.title')}>
+      <Page title={t('hospital.title')}>
         <Card><CardBody>
           <ErrorState title={t('hospital.loadError')} onRetry={load} retryLabel={t('common.retry')} />
         </CardBody></Card>
-      </PageLayout>
+      </Page>
     )
   }
 
   return (
-    <PageLayout title={hospital?.name || t('hospital.title')} description={hospital?.address}>
+    <Page title={hospital?.name || t('hospital.title')} description={hospital?.address}>
       <div className="flex flex-col gap-5">
         <Card>
           <CardHeader><h2 className="card-title">{t('hospital.profile')}</h2></CardHeader>
@@ -234,7 +234,7 @@ export default function HospitalDashboard() {
         confirmLabel={t('common.remove')}
         cancelLabel={t('common.cancel')}
       />
-    </PageLayout>
+    </Page>
   )
 }
 

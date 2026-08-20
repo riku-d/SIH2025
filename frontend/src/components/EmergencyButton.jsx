@@ -26,8 +26,10 @@ export default function EmergencyButton() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="fixed bottom-5 right-5 z-30 h-14 px-5 rounded-full bg-danger-500 text-white font-semibold
-                   shadow-raised hover:bg-danger-600 transition-colors flex items-center gap-2"
+        className="fixed right-4 lg:right-5 z-40 h-12 lg:h-14 px-4 lg:px-5 rounded-full
+                   bottom-[calc(env(safe-area-inset-bottom)+5.25rem)] lg:bottom-5
+                   bg-danger-500 text-white font-semibold shadow-lifted hover:bg-danger-600
+                   transition-colors flex items-center gap-2"
       >
         <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" aria-hidden="true">
           <path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h2.2a1 1 0 011 .77l.8 3.4a1 1 0 01-.53 1.1l-1.4.7a11 11 0 006 6l.7-1.4a1 1 0 011.1-.53l3.4.8a1 1 0 01.77 1V17a2 2 0 01-2 2A16 16 0 013 5z" />

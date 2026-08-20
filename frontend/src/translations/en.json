@@ -205,9 +205,16 @@
       "noOrder": "No active orders",
       "noOrderHelp": "Order medicine from a pharmacy near you.",
       "findDoctor": "Find a doctor",
-      "checkSymptoms": "Check symptoms",
+      "checkSymptoms": "Ask the AI assistant",
       "orderMedicine": "Order medicine",
       "quickActions": "What would you like to do?"
+    },
+    "home": {
+      "greeting": "Hello, {{name}}",
+      "nothingTitle": "Nothing scheduled",
+      "nothingBody": "Not feeling well? Describe your symptoms and we'll point you to the right kind of doctor.",
+      "awaitingBody": "The doctor will confirm a date and time shortly.",
+      "viewCare": "All appointments"
     }
   },
   "doctor": {
@@ -231,7 +238,8 @@
     "requests": {
       "title": "Appointment requests",
       "empty": "No requests waiting",
-      "emptyHelp": "New appointment requests from patients will appear here."
+      "emptyHelp": "New appointment requests from patients will appear here.",
+      "description": "Patients waiting for you to confirm a date and time."
     }
   },
   "appointments": {
@@ -284,7 +292,7 @@
     "confirmTitle": "Confirm appointment with {{name}}",
     "confirmDate": "Confirm the date",
     "confirmSlot": "Assign a time slot",
-    "chooseSlot": "Choose a time slot",
+    "chooseSlot": "Choose a time…",
     "notesForPatient": "Note for the patient",
     "notesPlaceholder": "Anything they should bring, prepare or know beforehand.",
     "confirmAction": "Confirm appointment",
@@ -306,7 +314,19 @@
       "confirmed": "Confirmed",
       "completed": "Completed"
     },
-    "patientSymptoms": "Patient's symptoms"
+    "patientSymptoms": "Patient's symptoms",
+    "pickDay": "Pick a day",
+    "pickTime": "Pick a time",
+    "pickTimeFirst": "Choose a day and time first",
+    "slotsFree": "{{count}} free",
+    "noSlots": "None free",
+    "tryAnotherDay": "Try another day — this one is full.",
+    "today": "Today",
+    "tomorrow": "Tomorrow",
+    "changeDoctor": "Change",
+    "bookWithHint": "Pick a time that suits you. You can add a photo, voice note or video on the next screen.",
+    "acceptAt": "Accept {{time}}",
+    "suggestAnother": "Suggest another time"
   },
   "records": {
     "title": "Health records",
@@ -333,7 +353,8 @@
     "selectPatient": "Select a patient",
     "selectPatientHelp": "Choose a patient to see their history and add a record.",
     "noPatients": "No patients yet",
-    "noPatientsHelp": "Patients appear here once they book an appointment with you."
+    "noPatientsHelp": "Patients appear here once they book an appointment with you.",
+    "orderPrescription": "Order these medicines"
   },
   "doctors": {
     "title": "Find a doctor",
@@ -358,8 +379,8 @@
     "notFound": "We couldn't find that doctor."
   },
   "symptomChecker": {
-    "title": "AI symptom guidance",
-    "description": "Describe how you're feeling, or upload a prescription, medicine photo or report. You'll get plain-language guidance in your language.",
+    "title": "AI health assistant",
+    "description": "Describe how you're feeling, or photograph a prescription, medicine or test report. You'll get plain-language guidance in your language.",
     "disclaimerTitle": "AI-generated guidance",
     "disclaimer": "This is general information only. It is not a diagnosis and does not replace advice from a qualified doctor. If you feel worse, see a doctor.",
     "urgentTitle": "Please get medical help now",
@@ -397,6 +418,13 @@
       "medicineDescriber": "Act as a careful pharmacy assistant. Identify the medicine shown or named, and explain in simple words what it is normally used for, common side effects, and important precautions. Do not recommend a dose for this specific person. Begin with a clear statement that this is not a substitute for advice from a doctor or pharmacist.",
       "reportAnalyzer": "Act as a careful medical report explainer. Summarise the report in simple words: which values are in the normal range, which are not, and what those generally indicate. Do NOT give a diagnosis or specific treatment advice. Begin with a clear statement that this is not a substitute for a doctor's interpretation.",
       "default": "Act as a careful health information assistant. Answer in simple, clear words. Do not give a diagnosis. Begin with a clear statement that this is not a substitute for professional medical advice."
+    },
+    "callAmbulance": "Call 108 for an ambulance",
+    "helpHints": {
+      "medicalAssistance": "Fever, pain, injury or anything that feels wrong",
+      "prescriptionReader": "Photograph a prescription and have it read out",
+      "medicineDescriber": "What a medicine is for and its side effects",
+      "reportAnalyzer": "Blood tests and scan reports in plain words"
     }
   },
   "consultation": {
@@ -478,7 +506,10 @@
     "checkout": "Checkout",
     "total": "Total",
     "noMedicines": "No medicines listed yet",
-    "noMedicinesHelp": "This pharmacy hasn't added any stock."
+    "noMedicinesHelp": "This pharmacy hasn't added any stock.",
+    "fromPrescription": "Ordering from your prescription",
+    "fromPrescriptionBody": "Choose a pharmacy below. We'll search for your medicines when you open it.",
+    "orderPrescription": "Order these medicines"
   },
   "emergency": {
     "button": "Emergency",
@@ -553,5 +584,109 @@
       "hospital": "Bring your doctors and partner pharmacies together under one roof, and manage who's associated with you."
     },
     "ctaNote": "Free to join. No card required."
+  },
+  "nav": {
+    "primary": "Main",
+    "patient": {
+      "home": "Home",
+      "care": "Care",
+      "records": "Records",
+      "medicine": "Medicine"
+    },
+    "doctor": {
+      "today": "Today",
+      "requests": "Requests",
+      "appointments": "Schedule",
+      "patients": "Patients"
+    },
+    "pharmacy": {
+      "overview": "Overview",
+      "medicines": "Stock",
+      "orders": "Orders"
+    },
+    "hospital": {
+      "overview": "Overview"
+    }
+  },
+  "care": {
+    "title": "Your care",
+    "subtitle": "Consultations you've requested, and the doctors you've seen."
+  },
+  "assistant": {
+    "title": "AI health assistant",
+    "subtitle": "Speak or type. Ask about symptoms, a prescription, a medicine or a test report.",
+    "launcher": "Ask Sathi",
+    "greeting": "Namaste. Tell me what's troubling you — you can speak instead of typing.",
+    "starterTitle": "What do you need help with?",
+    "starterHint": "Tap one to start, then change the words to fit you.",
+    "seeds": {
+      "medicalAssistance": "I've had a fever and a dry cough for three days.",
+      "prescriptionReader": "Please read this prescription and tell me what to take.",
+      "medicineDescriber": "What is this medicine for?",
+      "reportAnalyzer": "Please explain my test report in simple words."
+    },
+    "placeholder": "Describe how you feel…",
+    "send": "Send",
+    "stop": "Stop",
+    "retry": "Try again",
+    "attachPhoto": "Add a photo",
+    "removeFile": "Remove",
+    "attachedPhoto": "Attached photo",
+    "newChat": "Start over",
+    "newChatConfirm": "Clear this conversation? You can't get it back.",
+    "cleared": "Conversation cleared.",
+    "thinking": "Thinking…",
+    "you": "You",
+    "assistant": "Sathi",
+    "errors": {
+      "network": "Couldn't reach the assistant. Check your connection and try again.",
+      "rate_limit": "Too many questions just now. Wait a minute and try again.",
+      "unauthorized": "Your session expired. Please sign in again.",
+      "not_configured": "The assistant isn't set up on this server yet.",
+      "too_large": "That photo is too large. Try a smaller one.",
+      "blocked": "I can't answer that one. Please talk to a doctor.",
+      "unknown": "Something went wrong. Try again, or talk to a doctor.",
+      "busy": "The assistant is busy right now. Wait a moment and try again."
+    },
+    "hold": "Hold to speak",
+    "slideToCancel": "Slide left to cancel",
+    "releaseToCancel": "Release to cancel",
+    "secondsLeft": "{{count}}s left",
+    "listen": "Listen to this answer",
+    "stopListening": "Stop reading aloud",
+    "playGreeting": "Hear this read aloud",
+    "transcribing": "Writing down what you said…",
+    "voiceErrors": {
+      "permission_denied": "The microphone is blocked. Allow it in your browser settings, then tap the mic again.",
+      "insecure_context": "The microphone needs a secure (https) connection. Type your question instead.",
+      "unsupported": "This browser can't record. Type your question instead.",
+      "mic_failed": "Couldn't start the microphone. Try again, or type instead.",
+      "transcription_failed": "Couldn't understand that recording. Try again, or type instead.",
+      "rate_limit": "Too many requests just now. Wait a minute, then try again.",
+      "empty": "I didn't hear anything. Hold the mic and speak clearly.",
+      "busy": "The assistant is busy right now. Wait a moment, then hold the mic again."
+    },
+    "micHint": "Hold the mic and speak. Release when you're done.",
+    "groundedIn": "Based on",
+    "outOfStock": "out of stock",
+    "addToCart": "Add to cart",
+    "viewCart": "View cart",
+    "addedToCart": "{{name}} added to your cart.",
+    "prescriptionOnly": "Prescription needed",
+    "askNext": "You could ask",
+    "preparingSummary": "Preparing a summary for the doctor…",
+    "offlineNote": "Saved answer — you are offline",
+    "truncated": "This answer was cut short. Ask again for the rest, or talk to a doctor.",
+    "sending": "Sending…",
+    "notSent": "Not sent — tap to try again",
+    "savedAnswerBusy": "Saved answer — the assistant is busy"
+  },
+  "checkout": {
+    "prescriptionTitle": "Prescription needed",
+    "prescriptionHelp": "One or more medicines in this order need a doctor’s prescription. Take a photo of it so the pharmacy can check before dispensing.",
+    "prescriptionAdd": "Take a photo of the prescription",
+    "prescriptionAdded": "Prescription attached",
+    "prescriptionReplace": "Use a different photo",
+    "prescriptionMissing": "Please add a photo of your prescription to continue."
   }
 }

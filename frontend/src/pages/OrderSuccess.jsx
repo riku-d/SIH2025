@@ -3,8 +3,12 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import PageLayout from '../components/PageLayout'
 import { useToast } from '../components/ui/Toast'
 import api from '../services/api'
+import Badge from '../components/ui/Badge'
+import { orderStatus } from '../lib/status'
+import { useTranslation } from 'react-i18next'
 
 export default function OrderSuccess() {
+  const { t } = useTranslation()
   const toast = useToast()
   const { orderId } = useParams()
   const navigate = useNavigate()
@@ -35,18 +39,6 @@ export default function OrderSuccess() {
     }
   }
 
-  const getStatusColor = (status) => {
-    const colors = {
-      pending: 'text-yellow-600 bg-yellow-100',
-      confirmed: 'text-blue-600 bg-blue-100',
-      preparing: 'text-purple-600 bg-purple-100',
-      ready: 'text-green-600 bg-green-100',
-      dispatched: 'text-indigo-600 bg-indigo-100',
-      delivered: 'text-green-600 bg-green-100',
-      cancelled: 'text-red-600 bg-red-100'
-    }
-    return colors[status] || colors.pending
-  }
 
   if (loading) {
     return (
@@ -62,8 +54,8 @@ export default function OrderSuccess() {
     return (
       <PageLayout title="Order Not Found">
         <div className="text-center py-12">
-          <div className="text-gray-500 text-lg mb-4">Order not found</div>
-          <Link to="/patient" className="btn-primary">Back to Dashboard</Link>
+          <div className="text-muted text-lg mb-4">Order not found</div>
+          <Link to="/patient" className="btn btn-primary">Back to Dashboard</Link>
         </div>
       </PageLayout>
     )
@@ -74,14 +66,14 @@ export default function OrderSuccess() {
       <div className="max-w-4xl mx-auto space-y-6">
         
         {/* Success Message */}
-        <div className="card bg-green-50 border-green-200">
+        <div className="card bg-success-50 border-success-100">
           <div className="card-body text-center">
             <div className="text-6xl mb-4">✅</div>
-            <h2 className="text-2xl font-bold text-green-800 mb-2">Order Placed Successfully!</h2>
-            <p className="text-green-700 mb-4">
+            <h2 className="text-2xl font-bold text-success-600 mb-2">Order Placed Successfully!</h2>
+            <p className="text-success-600 mb-4">
               Your order has been confirmed and sent to the pharmacy for processing.
             </p>
-            <div className="text-lg font-semibold text-green-800">
+            <div className="text-lg font-semibold text-success-600">
               Order ID: {order.orderId}
             </div>
           </div>
@@ -101,9 +93,7 @@ export default function OrderSuccess() {
                 </div>
                 <div className="flex justify-between">
                   <span className="font-medium">Status:</span>
-                  <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(order.status)}`}>
-                    {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
-                  </span>
+                  <Badge tone={orderStatus(order.status, t).tone}>{orderStatus(order.status, t).label}</Badge>
                 </div>
                 <div className="flex justify-between">
                   <span className="font-medium">Order Type:</span>
@@ -127,10 +117,10 @@ export default function OrderSuccess() {
               <h3 className="section-title mb-4">Pharmacy Details</h3>
               <div className="space-y-2">
                 <div className="font-semibold">{order.pharmacyId?.name}</div>
-                <div className="text-sm text-gray-600">
+                <div className="text-small text-muted">
                   📍 {order.pharmacyId?.address || order.pharmacyId?.location}
                 </div>
-                <div className="text-sm text-gray-600">
+                <div className="text-small text-muted">
                   📞 {order.pharmacyId?.contact}
                 </div>
               </div>
@@ -144,10 +134,10 @@ export default function OrderSuccess() {
             <h3 className="section-title mb-4">Order Items</h3>
             <div className="space-y-3">
               {order.items?.map((item, index) => (
-                <div key={index} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                <div key={index} className="flex justify-between items-center p-3 bg-surface-2 rounded-lg">
                   <div className="flex-1">
                     <div className="font-medium">{item.medicineName}</div>
-                    <div className="text-sm text-gray-600">
+                    <div className="text-small text-muted">
                       Quantity: {item.quantity} × ₹{item.finalPrice}
                     </div>
                   </div>
@@ -186,7 +176,7 @@ export default function OrderSuccess() {
           <div className="card">
             <div className="card-body">
               <h3 className="section-title mb-4">Delivery Address</h3>
-              <div className="text-gray-700">
+              <div className="text-body">
                 <div className="font-medium">{order.deliveryAddress.name}</div>
                 <div>{order.deliveryAddress.phone}</div>
                 <div>{order.deliveryAddress.addressLine1}</div>
@@ -195,8 +185,8 @@ export default function OrderSuccess() {
                 {order.deliveryAddress.landmark && <div>Near {order.deliveryAddress.landmark}</div>}
               </div>
               {order.estimatedDelivery && (
-                <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                  <div className="text-blue-800 font-medium">
+                <div className="mt-4 p-3 bg-info-50 rounded-lg">
+                  <div className="text-info-600 font-medium">
                     🚚 Estimated Delivery: {new Date(order.estimatedDelivery).toLocaleDateString()}
                   </div>
                 </div>
@@ -207,11 +197,11 @@ export default function OrderSuccess() {
           <div className="card">
             <div className="card-body">
               <h3 className="section-title mb-4">Pickup Information</h3>
-              <div className="p-3 bg-orange-50 rounded-lg">
-                <div className="text-orange-800 font-medium mb-2">
+              <div className="p-3 bg-warning-50 rounded-lg">
+                <div className="text-warning-600 font-medium mb-2">
                   🏪 Please collect your order from:
                 </div>
-                <div className="text-orange-700">
+                <div className="text-warning-600">
                   <div className="font-medium">{order.pharmacyId?.name}</div>
                   <div>{order.pharmacyId?.address || order.pharmacyId?.location}</div>
                   <div>📞 {order.pharmacyId?.contact}</div>
@@ -223,13 +213,13 @@ export default function OrderSuccess() {
 
         {/* Prescription Notice */}
         {order.prescriptionRequired && (
-          <div className="card bg-yellow-50 border-yellow-200">
+          <div className="card bg-warning-50 border-warning-100">
             <div className="card-body">
               <div className="flex items-start space-x-3">
                 <div className="text-2xl">⚠️</div>
                 <div>
-                  <h4 className="font-semibold text-yellow-800 mb-2">Prescription Required</h4>
-                  <p className="text-yellow-700 text-sm">
+                  <h4 className="font-semibold text-warning-600 mb-2">Prescription Required</h4>
+                  <p className="text-warning-600 text-small">
                     Please have your valid prescription ready for verification 
                     {order.orderType === 'delivery' ? ' at the time of delivery' : ' when collecting from the pharmacy'}.
                   </p>
@@ -241,10 +231,10 @@ export default function OrderSuccess() {
 
         {/* Action Buttons */}
         <div className="flex gap-4 justify-center">
-          <Link to="/patient" className="btn-primary">
+          <Link to="/patient" className="btn btn-primary">
             Back to Dashboard
           </Link>
-          <Link to="/pharmacies" className="btn-secondary">
+          <Link to="/patient/medicine" className="btn btn-secondary">
             Continue Shopping
           </Link>
         </div>
@@ -253,12 +243,12 @@ export default function OrderSuccess() {
         <div className="card">
           <div className="card-body text-center">
             <h3 className="section-title mb-2">Need Help?</h3>
-            <p className="text-gray-600 text-sm mb-4">
+            <p className="text-muted text-small mb-4">
               If you have any questions about your order, please contact the pharmacy directly.
             </p>
             <div className="space-y-2">
               <div className="font-medium">{order.pharmacyId?.name}</div>
-              <div className="text-sm text-gray-600">📞 {order.pharmacyId?.contact}</div>
+              <div className="text-small text-muted">📞 {order.pharmacyId?.contact}</div>
             </div>
           </div>
         </div>

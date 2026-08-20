@@ -1,7 +1,7 @@
 import React, { lazy, Suspense } from 'react'
-import { Routes, Route, Navigate, useNavigate, useParams, useLocation } from 'react-router-dom'
+import { Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import DashboardShell from '../components/DashboardShell'
+import Page from '../components/app/Page'
 import Today from '../components/doctor/Today'
 import DoctorAppointments from '../components/doctor/DoctorAppointments'
 import PatientTracker from '../components/PatientTracker'
@@ -11,64 +11,96 @@ import { Loading } from '../components/ui/States'
 
 const VideoCall = lazy(() => import('../components/VideoCall'))
 
-const SECTIONS = ['index', 'requests', 'appointments', 'patients', 'profile']
-
 export default function DoctorDashboard() {
-  const { t } = useTranslation()
   const navigate = useNavigate()
-  const location = useLocation()
-
-  const segment = location.pathname.replace(/^\/doctor\/?/, '').split('/')[0]
-  const active = SECTIONS.includes(segment) && segment ? segment : 'index'
-
-  const sections = [
-    { key: 'index',        label: t('doctor.sections.today') },
-    { key: 'requests',     label: t('doctor.sections.requests') },
-    { key: 'appointments', label: t('doctor.sections.appointments') },
-    { key: 'patients',     label: t('doctor.sections.patients') },
-    { key: 'profile',      label: t('doctor.sections.profile') }
-  ]
-
-  const joinRoom = (appointmentId) => navigate(`/doctor/consultation/${appointmentId}`)
-
-  if (segment === 'consultation') {
-    return (
-      <Suspense fallback={<Loading className="py-24" />}>
-        <Routes>
-          <Route path="consultation/:appointmentId" element={<ConsultationView />} />
-        </Routes>
-      </Suspense>
-    )
-  }
+  const joinRoom = (appointmentId) => navigate(`/doctor/call/${appointmentId}`)
 
   return (
-    <DashboardShell title={t('doctor.title')} base="/doctor" sections={sections} active={active}>
-      <Routes>
-        <Route index element={<Today onJoinRoom={joinRoom} />} />
-        <Route path="requests" element={<DoctorAppointments mode="requests" onJoinRoom={joinRoom} />} />
-        <Route path="appointments" element={<DoctorAppointments mode="all" onJoinRoom={joinRoom} />} />
-        <Route path="patients" element={<PatientTracker />} />
-        <Route path="profile" element={<ProfileSection />} />
-        <Route path="*" element={<Navigate to="/doctor" replace />} />
-      </Routes>
-    </DashboardShell>
+    <Routes>
+      <Route index element={<TodayRoute onJoinRoom={joinRoom} />} />
+      <Route path="requests" element={<RequestsRoute onJoinRoom={joinRoom} />} />
+      <Route path="appointments" element={<ScheduleRoute onJoinRoom={joinRoom} />} />
+      <Route path="patients" element={<PatientsRoute />} />
+      <Route path="profile" element={<ProfileRoute />} />
+      <Route path="call/:appointmentId" element={<CallRoute />} />
+      <Route path="consultation/:appointmentId" element={<LegacyCallRedirect />} />
+      <Route path="*" element={<Navigate to="/doctor" replace />} />
+    </Routes>
   )
 }
 
-function ConsultationView() {
+function TodayRoute({ onJoinRoom }) {
+  const { t } = useTranslation()
+  return (
+    <Page title={t('doctor.title')}>
+      <Today onJoinRoom={onJoinRoom} />
+    </Page>
+  )
+}
+
+function RequestsRoute({ onJoinRoom }) {
+  const { t } = useTranslation()
+  return (
+    <Page title={t('doctor.requests.title')} description={t('doctor.requests.description')}>
+      <DoctorAppointments mode="requests" onJoinRoom={onJoinRoom} />
+    </Page>
+  )
+}
+
+function ScheduleRoute({ onJoinRoom }) {
+  const { t } = useTranslation()
+  return (
+    <Page title={t('nav.doctor.appointments')}>
+      <DoctorAppointments mode="all" onJoinRoom={onJoinRoom} />
+    </Page>
+  )
+}
+
+function PatientsRoute() {
+  const { t } = useTranslation()
+  return (
+    <Page title={t('doctor.sections.patients')} description={t('records.selectPatientHelp')}>
+      <PatientTracker />
+    </Page>
+  )
+}
+
+function ProfileRoute() {
+  const { t } = useTranslation()
+  return (
+    <Page title={t('profile.title')} description={t('profile.subtitle')}>
+      <ProfileSection />
+    </Page>
+  )
+}
+
+function CallRoute() {
   const { appointmentId } = useParams()
   const navigate = useNavigate()
   const { t } = useTranslation()
 
   return (
-    <div className="container-app py-6 sm:py-8">
+    <div className="px-4 sm:px-6 lg:px-8 py-6 max-w-5xl">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
-        <h1 className="page-title">{t('consultation.title')}</h1>
+        <h1 className="text-d3 text-ink">{t('consultation.title')}</h1>
         <Button variant="secondary" size="sm" onClick={() => navigate('/doctor')}>
           {t('consultation.back')}
         </Button>
       </div>
-      <VideoCall roomId={appointmentId} perspective="doctor" onLeave={() => navigate('/doctor')} />
+      <Suspense fallback={<Loading className="py-24" />}>
+        <VideoCall
+          roomId={appointmentId}
+          perspective="doctor"
+          // Ending a call hands straight to the record, instead of making
+          // the doctor find the patient again in a separate section.
+          onLeave={() => navigate('/doctor/patients', { state: { appointmentId } })}
+        />
+      </Suspense>
     </div>
   )
+}
+
+function LegacyCallRedirect() {
+  const { appointmentId } = useParams()
+  return <Navigate to={`/doctor/call/${appointmentId}`} replace />
 }
